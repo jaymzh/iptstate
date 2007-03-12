@@ -1,0 +1,23 @@
+IPTSTATE WISHLIST
+Current for version 1.1.0.
+This is the wishlist. READ IT BEFORE EMAILING ME.
+
+Features I really want to add
+- Proper IP sorting
+- Optional DNS lookups
+- Statistics
+
+Features I may add if I have a lot of time or find a use for them
+- Secondary sorting
+- Filtering if output
+
+Features that would be cool but can't/won't happen
+- I would like to show "number of packets" sent by a state, but
+  /proc/net/ip_conntrack doesn't seem to store that information.
+
+Features I don't want to add, and won't add.
+- 
+
+
+Phil Dibowitz
+webmaster@ipom.com

@@ -33,6 +33,9 @@
   interface for IP Tables. I've added in the "single run"
   option since there's no nice way to do that either.
 
+  NOTE: IF YOU WANT TO PACKAGE THIS SOFTWARE FOR A 
+  LINUX DISTROBUTION, CONTACT ME!
+
 */ 
 
 #include <iostream>
@@ -44,7 +47,9 @@
 #include <ncurses.h>
 // note some versions of gcc
 // won't take sys/select.h
-// or time.h, but take sys/time.h
+// or time.h, but DO take sys/time.h
+// I don't know why, but this works
+// for everyone, so...
 #include <sys/time.h>
 #include <getopt.h>
 #include <netdb.h>
@@ -53,7 +58,15 @@ using namespace std;
 //
 // GLOBAL CONSTANTS
 //
-const string VERSION="1.0.1";
+const string VERSION="1.1.0";
+// Maybe one day I'll get this from kernel params
+const int MAXCONS=16384;
+const int MAXFIELDS=20;
+
+//
+// GLOBAL VARS
+//
+int sort_factor = 1;
 
 //
 // FUNCTIONS AND STRUCTS
@@ -70,11 +83,6 @@ int dst_sort(const void *a, const void *b);
 int proto_sort(const void *a, const void *b);
 int state_sort(const void *a, const void *b);
 int ttl_sort(const void *a, const void *b);
-int src_rsort(const void *a, const void *b);
-int dst_rsort(const void *a, const void *b);
-int proto_rsort(const void *a, const void *b);
-int state_rsort(const void *a, const void *b);
-int ttl_rsort(const void *a, const void *b);
 
 //
 // MAIN
@@ -84,24 +92,33 @@ int main(int argc, char *argv[]) {
 // Variables
 string line, src, dst, srcpt, dstpt, proto, code, type, state, 
 	ttl, mins, secs, hrs, sorting, crap;
-char min[5], sec[5], hr[5];
-vector<table> stable(50);
+char ttlc[11], *format = "%-21s %-21s %-7s %-12s %-7s\n";
+vector<table> stable(MAXCONS);
+vector<string> fields(MAXFIELDS);
 int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1;
-vector<string> fields(50);
 timeval selecttimeout;
 fd_set readfd;
-bool are_hours = false, single = false, gotsort=false, reverse=false;
+bool single = false;
 
 
 // Command Line Arguments
-while ((temp = getopt(argc,argv,"shr:b:")) != EOF) {
+while ((temp = getopt(argc,argv,"shRr:b:")) != EOF) {
 	switch (temp) {
 		case 's':
 			single = true;
 			break;
 		case 'b':
-			crap = optarg;
-			gotsort = true;
+			if (*optarg == 'd')
+				sortby=1;
+			else if (*optarg == 'p')
+				sortby=2;
+			else if (*optarg == 's')
+				sortby=3;
+			else if (*optarg == 't')
+				sortby=4;
+			break;
+		case 'R':
+			sort_factor = -1;
 			break;
 		case 'r':
 			rate = atoi(optarg);
@@ -111,6 +128,7 @@ while ((temp = getopt(argc,argv,"shr:b:")) != EOF) {
 			cout << "Usage: iptstate [-sh] [-r rate] [-b [d|p|s|t]]\n";
 			cout << "	s: single run (no ncurses)\n";
 			cout << "	h: this help message\n";
+			cout << "	R: reverse sort order\n";
 			cout << "	r: refresh rate, followed by rate in seconds\n";
 			cout << "           (for statetop, not applicable for -s)\n";
 			cout << "	b: sort by\n";
@@ -122,17 +140,6 @@ while ((temp = getopt(argc,argv,"shr:b:")) != EOF) {
 			exit(0);
 			break;
 	}
-}
-
-if (gotsort) {
-	if (crap == "d")
-		sortby=1;
-	else if (crap == "p")
-		sortby=2;
-	else if (crap == "s")
-		sortby=3;
-	else if (crap == "t")
-		sortby=4;
 }
 
 if (rate < 0 || rate > 60) {
@@ -154,7 +161,7 @@ while(1) {
 	
 	// Open the file
 	ifstream input("/proc/net/ip_conntrack");
-	while (getline(input,line) && num < 50) {
+	while (getline(input,line) && num < MAXCONS) {
 		splita(' ',line,fields);
 
 		// Read stuff into the array
@@ -170,25 +177,12 @@ while(1) {
 		// ttl
 		seconds = atoi(fields[2].c_str());
 		minutes = seconds/60;
-		if (minutes > 59) {
-			are_hours = true;
-			hours = minutes/60;
-			minutes = minutes%60;
-		}
+		hours = minutes/60;
+		minutes = minutes%60;
 		seconds = seconds%60;
 		//want strings
-		sprintf(min,"%i",minutes);
-		sprintf(sec,"%i",seconds);
-		mins = min;
-		secs = sec;
-		if (are_hours == true) {
-			sprintf(hr,"%i",hours);
-			hrs = hr;
-			stable[num].ttl = hrs + ":" + mins + ":" + secs;
-		} else {
-			stable[num].ttl = "0:" + mins + ":" + secs;
-		}
-		are_hours = false;
+		sprintf(ttlc,"%3i:%02i:%02i",hours,minutes,seconds);
+		stable[num].ttl = ttlc; 
 
 		// OK, proto dependent stuff
 		if (stable[num].proto == "tcp") {
@@ -239,29 +233,16 @@ while(1) {
 	input.close(); // close the ip_conntrack
 
 	//sort the fucker
-	if (!reverse) {
-		if (sortby == 0)
-			qsort(&(stable[0]),num,sizeof(table),src_sort);
-		else if (sortby == 1)
-			qsort(&(stable[0]),num,sizeof(table),dst_sort);
-		else if (sortby == 2)
-			qsort(&(stable[0]),num,sizeof(table),proto_sort);
-		else if (sortby == 3)
-			qsort(&(stable[0]),num,sizeof(table),state_sort);
-		else if (sortby == 4)
-			qsort(&(stable[0]),num,sizeof(table),ttl_sort);
-	} else {
-		if (sortby == 0)
-			qsort(&(stable[0]),num,sizeof(table),src_rsort);
-		else if (sortby == 1)
-			qsort(&(stable[0]),num,sizeof(table),dst_rsort);
-		else if (sortby == 2)
-			qsort(&(stable[0]),num,sizeof(table),proto_rsort);
-		else if (sortby == 3)
-			qsort(&(stable[0]),num,sizeof(table),state_rsort);
-		else if (sortby == 4)
-			qsort(&(stable[0]),num,sizeof(table),ttl_rsort);
-	}
+	if (sortby == 0)
+		qsort(&(stable[0]),num,sizeof(table),src_sort);
+	else if (sortby == 1)
+		qsort(&(stable[0]),num,sizeof(table),dst_sort);
+	else if (sortby == 2)
+		qsort(&(stable[0]),num,sizeof(table),proto_sort);
+	else if (sortby == 3)
+		qsort(&(stable[0]),num,sizeof(table),state_sort);
+	else if (sortby == 4)
+		qsort(&(stable[0]),num,sizeof(table),ttl_sort);
 
 	//define 'sorting'
 	if (sortby == 0)
@@ -285,11 +266,9 @@ while(1) {
 		// although I SHOULD use cout for formatted printing
 		// this makes it easy to change printw and printf statements
 		// at the same time
-		printf("%-21s %-21s %-7s %-12s %-7s\n", "Source IP", "Destination IP", "Proto", "State", "TTL");
+		printf(format, "Source IP", "Destination IP", "Proto", "State", "TTL");
 		for (temp=0; temp < num; temp++) {
-			printf("%-21s %-21s %-7s %-12s %-7s\n", stable[temp].src.c_str(), stable[temp].dst.c_str(), stable[temp].proto.c_str(), stable[temp].state.c_str(), stable[temp].ttl.c_str());
-			if (temp >= maxy-4)
-				break;
+			printf(format, stable[temp].src.c_str(), stable[temp].dst.c_str(), stable[temp].proto.c_str(), stable[temp].state.c_str(), stable[temp].ttl.c_str());
 		}
 		exit(0);
 	}
@@ -315,7 +294,7 @@ while(1) {
 	attron(A_BOLD);
 	printw("Sort: ");
 	attroff(A_BOLD);
-	if (reverse)
+	if (sort_factor == -1)
 		sorting = sorting + " reverse";
 	printw("%-16s", sorting.c_str());
 	attron(A_BOLD);
@@ -323,12 +302,12 @@ while(1) {
 	attroff(A_BOLD);
 	printw("%-20s\n", " to change sorting");
 	attron(A_BOLD);
-	printw("%-21s %-21s %-7s %-12s %-7s\n", "Source IP", "Destination IP", "Proto", "State", "TTL");
+	printw(format, "Source IP", "Destination IP", "Proto", "State", "TTL");
 	attroff(A_BOLD);
 
 	//print the state table
 	for (temp=0; temp < num; temp++) {
-		printw("%-21s %-21s %-7s %-12s %-7s\n", stable[temp].src.c_str(), stable[temp].dst.c_str(), stable[temp].proto.c_str(), stable[temp].state.c_str(), stable[temp].ttl.c_str());
+		printw(format, stable[temp].src.c_str(), stable[temp].dst.c_str(), stable[temp].proto.c_str(), stable[temp].state.c_str(), stable[temp].ttl.c_str());
 		if (temp >= maxy-4)
 			break;
 	}
@@ -339,6 +318,7 @@ while(1) {
 	//or whatever the user said
 	selecttimeout.tv_sec = rate;
 	selecttimeout.tv_usec = 0;
+	// I don't care about fractions of seconds. I don't want them.
 	FD_ZERO(&readfd);
 	FD_SET(0, &readfd);
 	select(1,&readfd, NULL, NULL, &selecttimeout);
@@ -352,10 +332,7 @@ while(1) {
 			else
 				sortby=0;
 		} else if (temp == 'r') {
-			if (reverse == true)
-				reverse = false;
-			else
-				reverse = true;
+			sort_factor = -sort_factor;
 		}
 	}
 
@@ -363,9 +340,10 @@ while(1) {
 } // end while(1)
 
 // Take down the curses stuff
-printw("\n");
 nocbreak();
 endwin();
+
+cout << endl;
 
 // And we're done
 return(0);
@@ -391,7 +369,7 @@ void splita(char s, string line, vector<string> &result) {
 	int i=0;
 	string temp, temp1;
 	temp = line;
-	while (temp.find(s) != string::npos) {
+	while ((temp.find(s) != string::npos) && (i < MAXFIELDS-1)){
 		pos = temp.find(s);
 		result[i] = temp.substr(0,pos);
 		size = temp.size();
@@ -409,81 +387,41 @@ int src_sort(const void *a, const void *b) {
 	if(((table *)a)->src == ((table *)b)->src) {
 		return 0;
 	} else if (((table *)a)->src > ((table *)b)->src) {
-		return 1;
+		return sort_factor;
 	}
-	return -1;
+	return -sort_factor;
 }
 int dst_sort(const void *a, const void *b) {
 	if(((table *)a)->dst == ((table *)b)->dst) {
 		return 0;
 	} else if (((table *)a)->dst > ((table *)b)->dst) {
-		return 1;
+		return sort_factor;
 	}
-	return -1;
+	return -sort_factor;
 }
 int proto_sort(const void *a, const void *b) {
 	if(((table *)a)->proto == ((table *)b)->proto) {
 		return 0;
 	} else if (((table *)a)->proto > ((table *)b)->proto) {
-		return 1;
+		return sort_factor;
 	}
-	return -1;
+	return -sort_factor;
 }
 int state_sort(const void *a, const void *b) {
 	if(((table *)a)->state == ((table *)b)->state) {
 		return 0;
 	} else if (((table *)a)->state > ((table *)b)->state) {
-		return 1;
+		return sort_factor;
 	}
-	return -1;
+	return -sort_factor;
 }
 int ttl_sort(const void *a, const void *b) {
 	if(((table *)a)->ttl == ((table *)b)->ttl) {
 		return 0;
 	} else if (((table *)a)->ttl > ((table *)b)->ttl) {
-		return 1;
+		return sort_factor;
 	}
-	return -1;
+	return -sort_factor;
 }
 
-//and now their counterparts
-int src_rsort(const void *a, const void *b) {
-	if(((table *)a)->src == ((table *)b)->src) {
-		return 0;
-	} else if (((table *)a)->src < ((table *)b)->src) {
-		return 1;
-	}
-	return -1;
-}
-int dst_rsort(const void *a, const void *b) {
-	if(((table *)a)->dst == ((table *)b)->dst) {
-		return 0;
-	} else if (((table *)a)->dst < ((table *)b)->dst) {
-		return 1;
-	}
-	return -1;
-}
-int proto_rsort(const void *a, const void *b) {
-	if(((table *)a)->proto == ((table *)b)->proto) {
-		return 0;
-	} else if (((table *)a)->proto < ((table *)b)->proto) {
-		return 1;
-	}
-	return -1;
-}
-int state_rsort(const void *a, const void *b) {
-	if(((table *)a)->state == ((table *)b)->state) {
-		return 0;
-	} else if (((table *)a)->state < ((table *)b)->state) {
-		return 1;
-	}
-	return -1;
-}
-int ttl_rsort(const void *a, const void *b) {
-	if(((table *)a)->ttl == ((table *)b)->ttl) {
-		return 0;
-	} else if (((table *)a)->ttl < ((table *)b)->ttl) {
-		return 1;
-	}
-	return -1;
-}
+

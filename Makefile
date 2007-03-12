@@ -3,7 +3,7 @@
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 1.0.1
+# Makefile for IPTState verion 1.1.0
 #
 
 ### USERS CAN CHANGE STUFF HERE
@@ -11,6 +11,7 @@
 PREFIX=/usr
 SBIN=$(PREFIX)/sbin
 INSTALL=/usr/bin/install
+MAN=$(PREFIX)/share/man
 
 ### YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW HERE
 
@@ -23,7 +24,7 @@ all:
 	@echo "+-----------------------------------------------------------+"
 	@echo "| Welcome to IP Tables State by Phil Dibowitz               |"
 	@echo "|                                                           |"
-	@echo "| PLEASE read the License in the README                     |"
+	@echo "| PLEASE read the LICENSE and the README                    |"
 	@echo "| Consult the README for installation and usage information |"
 	@echo "|                                                           |"
 	@echo "| Let's compile...                                          |"
@@ -39,13 +40,13 @@ all:
 
 install:
 	$(INSTALL) -d $(SBIN)
-	$(INSTALL) --mode=755 iptstate $(SBIN)/iptstate
-
+	$(INSTALL) -D --mode=755 iptstate $(SBIN)/iptstate
+	$(INSTALL) -D --mode=444 man/man1/iptstate.1 $(MAN)/man1/iptstate.1
 
 clean:
 	/bin/rm -rf iptstate
 
 
 uninstall:
-	/bin/rm -rf /usr/sbin/iptstate
+	/bin/rm -rf $(SBIN)/iptstate
 

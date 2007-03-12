@@ -1,3 +1,14 @@
+1.1.0
+- Released 03/30/02
+- Various documentation updates/changes/fixes.
+- man page added
+- Will now read in up to 16384 connections instead of just 50
+	For single-line use, it will display them all as well.
+- Added command line flag for reverse sorting
+- Cleaned up reading of options
+- Fixed sorting of TTL/ cleaned up sorting code
+- Fixed uninstall in Makfile
+
 1.0.1
 - Released 02/27/02
 - Added spec file so people can build RPMs if the like

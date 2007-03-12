@@ -23,34 +23,37 @@
 
   -----------------------------------
 
-IPTState Version 1.0.1
+NOTE: If you are planning on packaging and/or submitting my
+software for/to a Linux Distribution, EMAIL ME FIRST!!!
+
+
+IPTState Version 1.1.0
 
 
 1. WHAT IS IP TABLES STATE?
 
-	IP Tables State (iptstate) was originally written to
-	impliment the "state top" feature of IP Filter (see
-	"The Idea" below) in IP Tables. "State top" displays
-	the states held by your stateful firewall in a 
-	top-like manner.
+  IP Tables State (iptstate) was originally written to implement
+  the "state top" feature of IP Filter (see "The Idea" below) in
+  IP Tables. "State top" displays the states held by your stateful
+  firewall in a top-like manner.
 
-	Since IP Tables doesn't have a built in way to easily
-	display this information even once, an option was
-	added to just have it display the state table once.
-
-	Features include:
-	 - Top-like realtime state table information
-	 - Sorting by any field
-	 - Reversible sorting
-	 - Single display of state table
-	 - Customizable refresh rate
-	 - Open Source (specifically I'm using the zlib license)
+  Since IP Tables doesn't have a built in way to easily display 
+  this information even once, an option was added to just have it 
+  display the state table once.
+ 
+  Features include:
+	- Top-like realtime state table information
+	- Sorting by any field
+	- Reversible sorting
+	- Single display of state table
+	- Customizable refresh rate
+	- Open Source (specifically I'm using the zlib license)
 	
 
 2. PRE-INSTALATION
 
-	Make sure you have some version of curses installed (for most
-		users this is probably ncurses).
+  Make sure you have some version of curses installed (for most users
+  this is probably ncurses).
 
 
 3. INSTALLATION
@@ -68,11 +71,11 @@ IPTState Version 1.0.1
 	  Configuration
 	The program is only one cpp source file, so the compile
 	is very simple. For this reason there is no config file.
-	The defaults in the makefile should be fine, but if you
+	The defaults in the Makefile should be fine, but if you
 	want to change something you can change where iptstate
 	gets installed by changing the "SBIN" variable. I can't
 	imagine a reason but if you have 'install' installed in
-	a wierd place change the INSTALL variable. Other than
+	a weird place change the INSTALL variable. Other than
 	that nothing should need tweaking. Obviously advanced
 	users may wish to do other stuff, but...
 
@@ -85,17 +88,20 @@ IPTState Version 1.0.1
 
 	  Installing
 	IPTState installs in /usr/sbin. This is because it should
-	be a utility for the superuser. Althought 
+	be a utility for the superuser. Although
 	/proc/net/ip_conntrac is actually world readable (and 
 	iptstate installs world read/executable), this is a package
 	for a sysadmin. Installing should be as simple as 'make 
 	install.' If this fails, feel free to do:
-	 # cp iptstate /usr/sbin/iptstate
-	 # chmod 755 /usr/sbin/iptstate
-	 # chown root:bin /usr/sbin/iptstate
+	 # cp iptstate /usr/local/sbin/iptstate
+	 # chmod 755 /usr/local/sbin/iptstate
+	 # chown root:bin /usr/local/sbin/iptstate
+	 # cp man/man1/iptstate.1 /usr/local/man/man1/iptstate.1
+	 # chmod 444 /usr/local/man/man1/iptstate.1
 	And that should do it. If 'make install' fails feel free
 	to drop me an email provided you put "IPTSTATE:" in the 
-	subject.
+	subject. Please see the BUGS file on how to send proper
+	bug reports.
 
 
 4. USAGE
@@ -119,25 +125,18 @@ IPTState Version 1.0.1
   your state table at the moment you requested it. This is where
   -b comes in handy. Again, the default sort is by Source IP.
 
-  That's about it!
+  Check the man page and the -h option - This is not meant to be
+  a comprehensive guide, and as more features are added, they may
+  not be added here. But that should give you the basics!
 
 
 5. DESIRED FEATURES
 
-  I will probably at some point change the datatype of the IP
-  addresses to in_addr and use the various tools in inet.h and 
-  in.h. This would help with sorting of the IP address, but is 
-  not a priority at this point.
-
-  Similarly to above I'll probably improve sorting of the TTL
-  section at some point. Again this isn't a priority at the
-  moment.
-
-  I would like to show "number of packets" sent by a state, but
-  /proc/net/ip_conntrack doesn't seem to store that information.
+  There is a list of features I plan and don't plan to implement
+  in the WISHLIST file.
 
 
-4. THE IDEA
+6. THE IDEA
 
   The idea of statetop comes from IP Filter by Darren Reed.
 
@@ -147,7 +146,7 @@ IPTState Version 1.0.1
   either.
 
 
-5. THE AUTHOR
+7. THE AUTHOR
 
   IPTState was written by me, Phil Dibowitz. I am a CECS student
   at USC. I maintain the FAQ for IP Filter, run the MSS Initiative

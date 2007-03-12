@@ -1,0 +1,72 @@
+.\" Process this file with
+.\" groff -man -Tascii iptstate.1
+.\"
+.TH IPTSTATE 1 "MARCH 2002" "" ""
+.\"
+.\" Man page written by Phil Dibowitz <webmaster@ipom.com>
+.\"
+.\" IPTState is copyright by Phil Dibowitz. Please see the README.
+.\"
+.SH NAME 
+iptstate \- A top-like display of IP Tables state table entries
+.SH SYNOPSIS
+.B iptstate 
+.RB [ \-shR ]
+.RB [ \-r 
+.I seconds
+]
+.RB [ \-b  
+.RB [ d | p | s | t ]]
+.\"
+.SH DESCRIPTION
+.B iptstate
+displays information held in the IP Tables state table in real-time in a top-like format.
+Output can be sorted by any field, or any field reversed. Users can choose to have the output only print once and exit. Refresh rate is also customizable.
+.SH OPTIONS
+.TP
+.B -b
+This option tells IPTState how to sort the output. The options are:
+.br
+.B "    d"
+Destination IP
+.br
+.B "    p"
+Protocol
+.br
+.B "    s"
+State
+.br
+.B "    t"
+TTL
+.TP
+.B -h
+Display help message.
+.TP
+.BI "-r " "seconds"
+This tells IPTState what the refresh you want (ignored when used with -s).
+.TP
+.B -R
+Sort in reverse.
+.TP
+.B -s
+Single-run mode. This will print the state table formatted on the screen once without using curses.
+.SH BUGS AND BUG REPORTS
+All bugs should be reported to Phil Dibowitz <webmaster@ipom.com>,
+.B NOT
+your local distribution bug list. Please see
+the
+.B README
+and
+.B BUGS
+for more information on bug reports. Please read the
+.B WISHLIST
+before sending in features you hope to see.
+.SH SEE ALSO
+.BR iptables (1)
+.br
+.SH AUTHOR
+IPTState (and this man page) was written by
+.br
+Phil Dibowitz <webmaster@ipom.com>
+.br
+http://home.earthlink.net/~jaymzh666/

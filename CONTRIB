@@ -1,0 +1,40 @@
+IPTSTATE CONTRIBUTIONS
+
+IPTState is written and maintained by Phil Dibowitz <webmaster@ipom.com>
+I originally wrote the software not planning on releasing it - I wanted
+a feature similar to IP Filter's StateTop when I was using Linux. I
+decided to release it. It's become much bigger than I expected in just a
+month.
+
+Darren Reed wrote IP Filter.
+Frank Volf wrote the Statetop code for IP Filter.
+
+Garrick Staples is the maintainer of the IPTState package for Mandrake.
+Brian Nelson is the maintainer of the IPTState package for Debian.
+
+Some people who helped me get this project started were Jullian Gomez, 
+and my friend Sanjay.
+
+Other contributions follow based on version:
+
+
+1.1.0
+- Beat Bolli sent in a large patch that was a reference to finish up much
+of the work I was doing for this version such as fixing TTL sort, and
+various simplifications. His patch also reminded me to do the -R option,
+notified me of the 'make uninstall' bug, and gave a few cleanups.
+
+- Blars Blarson sent a patch to the Debian developers noting that I was
+only reading in 50 connections. He also sent in a patch to print a
+newline upon exiting state-top mode so the prompt isn't mixed in left-
+over output.
+
+- Many others made patches that did some of the above things in countless
+ways...
+
+
+1.0.1
+- Thanks to Garrick Staples for the .spec file
+
+Phil Dibowitz
+webmaster@ipom.com

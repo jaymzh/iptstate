@@ -1,0 +1,39 @@
+IPTState Bugs
+
+ABOUT BUGS
+  If you find a bug in IPTState you should notify ME! You can contact me at
+webmaster@ipom.com. Don't send bug reports to public forums until AFTER
+you notify me.
+
+ABOUT MY RESPONSE
+  If your bug is serious - i.e. compilation errors, or major a functionality
+is broken, I'll usually give you pretty immediate attention. If it's a
+very minor bug, or a feature request, I will acknowledge your email, but I
+may not fix/implement immediately.
+
+ABOUT PATCHES
+  I do accept patches - I just don't usually use them. So you ask, 'so why
+should I write one?' Patches are great because they often give me the 
+core of the answer right away. However, I'm particularly anal about my
+code and so I like everything to be in my style. In fact, of all the
+patches I've received, I've applied 0. I've used several as reference
+though.
+
+  PATCHES SHOULD BE ACCOMPANIED BY EXPLINATIONS AND/OR BUG REPORTS! Let me
+know what you were trying to fix/add and how you did it. This will save
+me a lot of time, and I'll like you more.
+
+ABOUT BUG REPORTS
+  If you send me a bug report you MUST do the following:
+- Include "IPTSTATE" in the subject
+- Include your distribution and distro version
+- Include your kernel version
+- Include your gcc version
+- Include your make version
+- Include any relevant output and/or errors
+
+  Bug reports should be sent to *ME*. I cannot fix your bugs if you don't
+tell *ME* about them. That's right, send your bug reports to *ME*.
+
+Phil Dibowitz
+webmaster@ipom.com
