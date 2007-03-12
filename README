@@ -1,6 +1,6 @@
   IP Tables State (iptstate)
 
-  Copyright (C) 2002 - 2003 Phil Dibowitz
+  Copyright (C) 2002 - 2005 Phil Dibowitz
 
   This software is provided 'as-is', without any express or
   implied warranty. In no event will the authors be held
@@ -27,7 +27,7 @@ NOTE: If you are planning on packaging and/or submitting my
 software for/to a Linux Distribution, EMAIL ME FIRST!!!
 
 
-IPTState Version 1.3
+IPTState Version 1.4
 
 
 1. WHAT IS IP TABLES STATE?
@@ -71,22 +71,29 @@ IPTState Version 1.3
   The long version:
 
 	  Configuration
-	The program is only one cpp source file, so the compile
+	The program is only one c++ source file, so the compile
 	is very simple. For this reason there is no config file.
 	The defaults in the Makefile should be fine, but if you
 	want to change something you can change where iptstate
-	gets installed by changing the "SBIN" variable. I can't
-	imagine a reason but if you have 'install' installed in
-	a weird place change the INSTALL variable. Other than
-	that nothing should need tweaking. Obviously advanced
-	users may wish to do other stuff, but...
+	gets installed by changing the "SBIN" variable in your
+	environment. I can't imagine a reason but if you have
+	'install' installed in a weird place change the INSTALL
+	variable in your environment. Other than that nothing
+	should need tweaking. Obviously advanced users may wish
+	to do other stuff, but we'll leave that as an excersize
+	to the reader.
 
 	  Compiling
 	The compiling should be as simple as running 'make.'
 	If this doesn't work, feel free to drop me an email,
 	BUT MAKE SURE you put "IPTSTATE:" in the subject. In the
 	email include: Distribution, kernel version, make version,
-	gcc version, and the error messages.
+	gcc version, libc version, and the error messages.
+
+	Package maintainers my wish to override CXXFLAGS:
+	 # CXXFLAGS=-O2 make
+	and/or use "make strip" which will build iptstate and then
+	strip it.
 
 	If you get errors like:
 		iptstate.cc:286: passing `in_addr *' as argument
@@ -96,10 +103,9 @@ IPTState Version 1.3
 
 	  Installing
 	IPTState installs in /usr/sbin. This is because it should
-	be a utility for the superuser. Although
-	/proc/net/ip_conntrac is actually world readable (and 
-	iptstate installs world read/executable), this is a package
-	for a sysadmin. Installing should be as simple as 'make 
+	be a utility for the superuser. In recent versions of
+	iptables, /proc/net/ip_conntrac is only readable by root
+	anyway. Installing should be as simple as 'make 
 	install.' If this fails, feel free to do:
 	 # cp iptstate /usr/sbin/iptstate
 	 # chmod 755 /usr/sbin/iptstate
@@ -156,10 +162,11 @@ IPTState Version 1.3
 
 7. THE AUTHOR
 
-  IPTState was written by me, Phil Dibowitz. I am a CECS student
-  at USC. I maintain the FAQ for IP Filter, run the MSS Initiative
-  and maintain work as a Systems Administrator at USC. For more
-  info on me, check out http://www.phildev.net/
+  IPTState was written by me, Phil Dibowitz. I am a UNIX Systems
+  Administrator at USC maintaining, architecting, and administering
+  infrastructure Solaris systems. I maintain the FAQ for IP Filter,
+  run the MSS Initiative, document IP Filter, and do other open-source
+  work. For more info on me, check out http://www.phildev.net/
 
 
 Phil Dibowitz

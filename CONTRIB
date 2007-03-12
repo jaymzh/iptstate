@@ -16,6 +16,8 @@ Brian Nelson is the maintainer of the IPTState package for Debian.
 Bruce Locke is the maintainer of the IPTState package for Gentoo.
 Cristian Ionescu-Idbohrn is the maintainer of the IPTState package for
 floppyfw.  
+Roland Illig is the maintainer of the IPTState package for pkgsrc.
+Bruce Smith is the maintainer of the IPTState package for Devil Linux.
 
 OTHER
 Some people who helped me get this project started were Jullian Gomez, 
@@ -24,9 +26,10 @@ my fellow USCLUG'ers, and my friend Sanjay.
 BY VERSION
 Other contributions follow based on version. If you contributed something
 and you are not listed here, let me know, it's easy to forget to list
-people:
+people. Also note that if you're in the Changelog, you may not be here:
 
-1.2.1
+
+1.3
 - Steve Augart finally proved the memory leak was in ncurses. Just in
 the nick of time before Debian kicked ipstate out. Extra special mega
 thanks to you Steve! Others who helped were Julian Seward, Todd Lyons,

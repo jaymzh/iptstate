@@ -1,17 +1,21 @@
 IPTSTATE WISHLIST
-Current for version 1.3.
+Current for version 1.4.
 This is the wishlist. READ IT BEFORE EMAILING ME.
 
-Features I really want to add
-  All features here were added in 1.3!
+Features coming in the next version:
+- Filtering ports and hostnames
+- Dynamic changing of filtering
+- Inverse filtering
 
 Features I may add if I have a lot of time or find a use for them
 - Secondary sorting
-- Filter particular IP's/names
 
 Features that would be cool but can't/won't happen
 - I would like to show "number of packets" sent by a state, but
   /proc/net/ip_conntrack doesn't seem to store that information.
+  If the cfnet stuff every becomes used in the real world, I'll
+  probably port iptstate to that and then be able to provide
+  such a feature.
 
 Features I probably won't add because I'm not that interested, or 
 Don't feel they belong, or would be too much work, or some

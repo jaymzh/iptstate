@@ -27,10 +27,11 @@ ABOUT PATCHES
   I do accept patches - I just don't usually use them. So you ask, 'so why
 should I write one?' Patches are great because they often give me the 
 core of the answer right away. However, I'm particularly anal about my
-code and so I like everything to be in my style. In fact, of all the
-patches I've received, I've applied 0. I've used several as reference
-though. Feel free to submit a bug report without a patch if you want, that's
-fine too.
+code and so I like everything to be in my style, and since iptstate is small
+enough for me to do things by hand, I do. I've only received a handful of
+patches, most fixes come in the form of "change this in this way," and as
+such I've never applied an external patch. I've used a few as reference
+though. Feel free to submit a bug report with or without a patch if you want.
 
   PATCHES SHOULD BE ACCOMPANIED BY EXPLINATIONS AND/OR BUG REPORTS! Let me
 know what you were trying to fix/add and how you did it. This will save
@@ -43,10 +44,13 @@ ABOUT BUG REPORTS
 - Include your kernel version
 - Include your gcc version
 - Include your make version
+- Include your glibc version
 - Include any relevant output and/or errors
 
   Bug reports should be sent to *ME*. I cannot fix your bugs if you don't
 tell *ME* about them. That's right, send your bug reports to *ME*.
+
+Thanks!
 
 Phil Dibowitz
 phil@ipom.com

@@ -4,7 +4,7 @@
 *
 *  -----------------------------------
 *
-* Copyright (C) 2002 - 2003 Phil Dibowitz
+* Copyright (C) 2002 - 2005 Phil Dibowitz
 *
 * This software is provided 'as-is', without any express or
 * implied warranty. In no event will the authors be held
@@ -39,11 +39,13 @@
 */ 
 
 #include <iostream>
-#include <time.h>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <sstream>
+// Begin old-style includes includes
+#include <time.h>
 #include <stdlib.h>
-#include <fstream.h>
 #include <ncurses.h>
 // note some versions of gcc
 // won't take sys/select.h
@@ -58,7 +60,7 @@ using namespace std;
 //
 // GLOBAL CONSTANTS
 //
-const string VERSION="1.3";
+const string VERSION="1.4";
 // Maybe one day I'll get this from kernel params
 const int MAXCONS=16384;
 const int MAXFIELDS=20;
@@ -67,11 +69,10 @@ const int MAXFIELDS=20;
 // GLOBAL VARS
 //
 int sort_factor = 1;
+bool handle_resize = 0;
 
 //
 // FUNCTIONS AND STRUCTS
-// Why can't structs be referenced now and
-// defined later? I hate that.
 //
 struct table {
 	string proto, state, ttl, sname, dname;
@@ -82,6 +83,7 @@ void split(char s, string line, string &p1, string &p2);
 void splita(char s, string line, vector<string> &result);
 int digits(int x);
 void printline(table stable, bool lookup, bool single, char *format);
+void check_ip(const char *arg);
 
 int src_sort(const void *a, const void *b);
 int dst_sort(const void *a, const void *b);
@@ -100,24 +102,25 @@ int main(int argc, char *argv[]) {
 
 // Variables
 string line, src, dst, srcpt, dstpt, proto, code, type, state, 
-	ttl, mins, secs, hrs, sorting, crap;
+	ttl, mins, secs, hrs, sorting, tmpstring, dst_filter, src_filter;
 char ttlc[11], foo[3], format[30] = "%-21s %-21s %-7s %-12s %-7s\n";
 vector<table> stable(MAXCONS);
 vector<string> fields(MAXFIELDS);
-int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1,
+int seconds=0, minutes=0, hours=0, num, maxx, maxy, tmpint, sortby=0, rate=1,
 	numtcp=0, numudp=0, numicmp=0, numother=0, reslength=21;
 timeval selecttimeout;
 fd_set readfd;
 bool single = false, totals = false, lookup = false, skiplb = false,
-	defaultsize = false;
+	defaultsize = false, skipdns = false, tag_truncate = false,
+	filter_src = false, filter_dst = false;
 struct hostent* hostinfo = NULL;
 struct protoent* pe = NULL;
 unsigned int length;
 
 
 // Command Line Arguments
-while ((temp = getopt(argc,argv,"sdfhtlRr:b:")) != EOF) {
-	switch (temp) {
+while ((tmpint = getopt(argc,argv,"sdfhtlRr:b:LD:S:")) != EOF) {
+	switch (tmpint) {
 		case 's':
 			single = true;
 			break;
@@ -149,24 +152,45 @@ while ((temp = getopt(argc,argv,"sdfhtlRr:b:")) != EOF) {
 		case 'd':
 			defaultsize = true;
 			break;
+		case 'L':
+			skipdns = true;
+			break;
+		case 'S':
+			if (optarg == NULL)
+				break;
+			check_ip(optarg);
+			filter_src = true;
+			src_filter = optarg;
+			break;
+		case 'D':
+			if (optarg == NULL)
+				break;
+			check_ip(optarg);
+			filter_dst = true;
+			dst_filter = optarg;
+			break;
 		case 'h':
 			cout << "IPTables State Version " << VERSION << endl;
-			cout << "Usage: iptstate [-dfhlRst] [-r rate] [-b [d|p|s|t]]\n";
-			cout << "	d: Do not dynamically choose sizing, use default\n";
-			cout << "	f: Filter loopback\n";
-			cout << "	h: This help message\n";
-			cout << "	l: Show hostnames instead of IP addresses\n";
-			cout << "	R: reverse sort order\n";
-			cout << "	s: Single run (no curses)\n";
-			cout << "	t: Print totals\n";
-			cout << "	r: Refresh rate, followed by rate in seconds\n";
-			cout << "           (for statetop, not applicable for -s)\n";
+			cout << "Usage: iptstate [-dfhlLRst] [-b [d|p|s|t]] [-D <address>] [-S <address>] [-r <seconds>]\n";
 			cout << "	b: Sort by\n";
 			cout << "	   d: Destination IP (or Name)\n";
 			cout << "	   p: Protocol\n";
 			cout << "	   s: State\n";
 			cout << "	   t: TTL\n";
 			cout << "	   (to sort by Source IP (or Name), don't use -b)\n\n";
+			cout << "	d: Do not dynamically choose sizing, use default\n";
+			cout << "	D: Only show states with a destination of the IP address given\n";
+			cout << "	f: Filter loopback\n";
+			cout << "	h: This help message\n";
+			cout << "	l: Show hostnames instead of IP addresses\n";
+			cout << "	L: Hide DNS lookups\n";
+			cout << "	r: Refresh rate, followed by rate in seconds\n";
+			cout << "           (for statetop, not applicable for -s)\n";
+			cout << "	R: reverse sort order\n";
+			cout << "	s: Single run (no curses)\n";
+			cout << "	S: Only show states with a source of the IP address given\n";
+			cout << "	t: Print totals\n";
+			cout << "";
 			cout << "See man iptstate(1) for more information.\n";
 			exit(0);
 			break;
@@ -183,7 +207,6 @@ if (!single) {
 	cbreak();
 	noecho();
 }
-
 
 
 // We want to keep going until the user stops us 
@@ -211,20 +234,15 @@ while(1) {
 		// is 30. We want a space on either side for
 		// aesthetics, plus make room for xterm scrollbars
 		// and the like
-		temp=(maxx-34)/2;
-		if (temp > 99) { 
-			temp = 99;
+		tmpint=(maxx-34)/2;
+		if (tmpint > 99) { 
+			tmpint = 99;
 	               }                 
-		snprintf(foo,3,"%2i",temp);
-		// Since + isn't defined for char[3]
-		// We get to do it piece by piece!! Yay!!
-		crap = "\%-";
-		crap += foo; 
-		crap += "s \%-"; 
-		crap += foo;     
-		crap += "s \%-7s \%-12s \%-7s\n";
-		strncpy(format,crap.c_str(),30);
-		reslength=temp;
+		snprintf(foo,3,"%2i",tmpint);
+		// The string() allows the contact here for the char[3]
+		tmpstring = string() + "\%-" + foo + "s \%-" + foo + "s \%-7s \%-12s \%-7s\n";
+		strncpy(format,tmpstring.c_str(),30);
+		reslength=tmpint;
 	} else if (maxx < 72) {
 		nocbreak();                  
 		endwin();  
@@ -255,6 +273,9 @@ while(1) {
 		stable[num].ttl = "";
 		stable[num].state = "";
 
+		/* 
+		 * BEGIN PARSING
+		 */
 		splita(' ',line,fields);
 
 		// Read stuff into the array
@@ -283,11 +304,11 @@ while(1) {
 
 		// OK, proto dependent stuff
 		if (stable[num].proto == "tcp") {
-			split('=',fields[4],crap,src);
-			split('=',fields[5],crap,dst);
-			split('=',fields[6],crap,srcpt);
-			split('=',fields[7],crap,dstpt);
-			split('=',fields[3],crap,state);
+			split('=',fields[4],tmpstring,src);
+			split('=',fields[5],tmpstring,dst);
+			split('=',fields[6],tmpstring,srcpt);
+			split('=',fields[7],tmpstring,dstpt);
+			split('=',fields[3],tmpstring,state);
 	
 			inet_aton(src.c_str(), &stable[num].src);
 			inet_aton(dst.c_str(), &stable[num].dst);
@@ -298,10 +319,10 @@ while(1) {
 			numtcp++;
 			
 		} else if (stable[num].proto == "udp") {
-			split('=',fields[3],crap,src);
-			split('=',fields[4],crap,dst);
-			split('=',fields[5],crap,srcpt);
-			split('=',fields[6],crap,dstpt);
+			split('=',fields[3],tmpstring,src);
+			split('=',fields[4],tmpstring,dst);
+			split('=',fields[5],tmpstring,srcpt);
+			split('=',fields[6],tmpstring,dstpt);
 
 			inet_aton(src.c_str(), &stable[num].src);
 			inet_aton(dst.c_str(), &stable[num].dst);
@@ -312,10 +333,10 @@ while(1) {
 			numudp++;
 
 		} else if (stable[num].proto == "icmp") {
-			split('=',fields[3],crap,src);
-			split('=',fields[4],crap,dst);
-			split('=',fields[5],crap,type);
-			split('=',fields[6],crap,code);
+			split('=',fields[3],tmpstring,src);
+			split('=',fields[4],tmpstring,dst);
+			split('=',fields[5],tmpstring,type);
+			split('=',fields[6],tmpstring,code);
 
 			inet_aton(src.c_str(), &stable[num].src);
 			inet_aton(dst.c_str(), &stable[num].dst);
@@ -326,8 +347,8 @@ while(1) {
 		} else {
 			// If we're not TCP, or UDP
 			// There's no ports involved
-			split('=',fields[3],crap,src);
-			split('=',fields[4],crap,dst);
+			split('=',fields[3],tmpstring,src);
+			split('=',fields[4],tmpstring,dst);
 
 			inet_aton(src.c_str(), &stable[num].src);
 			inet_aton(dst.c_str(), &stable[num].dst);
@@ -336,9 +357,28 @@ while(1) {
 
 		}
 
-		if (skiplb && (!strcmp("127.0.0.1",src.c_str()))) {
+		/*
+		 * END PARSING
+		 */
+
+		/*
+		 * BEGIN FILTERING
+		 */
+		if (skiplb && (!strcmp("127.0.0.1",src.c_str())))
 			continue;
-		}
+
+		if (skipdns && (!strcmp("53",dstpt.c_str())))
+			continue;
+
+		if (filter_src && (src != src_filter))
+			continue;
+
+		if (filter_dst && (dst != dst_filter))
+			continue;
+
+		/*
+		 * END FILTERING
+		 */
 
 		// Resolve Names if we need to
 		if (lookup) {
@@ -350,12 +390,18 @@ while(1) {
 					// domain anyway
 					// Note Length is reslength - 1(for comma) - 1 (need a space) - port
 					length = reslength - 2 - digits(stable[num].srcpt);
-					if (stable[num].sname.size() > length)
+					if (stable[num].sname.size() > length) {
 						stable[num].sname = stable[num].sname.substr(0,length);
+						if (tag_truncate)
+							stable[num].sname[length-1] = '+';
+					}
 				} else {
 					length = reslength;
-					if (stable[num].sname.size() > length)
+					if (stable[num].sname.size() > length) {
 						stable[num].sname = stable[num].sname.substr(0,length);
+						if (tag_truncate)
+							stable[num].sname[length-1]='+';
+					}
 				}
 			} else {
 				//this else is here for troubleshooting
@@ -367,12 +413,18 @@ while(1) {
 					// We truncate the Destination from the left
 					// Since "images.server4" doens't help -- we want domains
 					length = reslength - 1 - digits(stable[num].dstpt);
-					if (stable[num].dname.size() > length)
+					if (stable[num].dname.size() > length) {
 						stable[num].dname = stable[num].dname.substr(stable[num].dname.size()-length,length);
+						if (tag_truncate)
+							stable[num].dname[0] = '+';
+					}
 				} else {
 					length = reslength;
-					if (stable[num].dname.size() > length)
+					if (stable[num].dname.size() > length) {
 						stable[num].dname = stable[num].dname.substr(stable[num].dname.size()-length,length);
+						if (tag_truncate)
+							stable[num].dname[0] = '+';
+					}
 				}
 			} else {
 				//herror("gethostbyaddr");
@@ -438,13 +490,23 @@ while(1) {
 		// at the same time
 		if (totals)
 			printf("Total States: %i -- TCP: %i UDP: %i ICMP: %i OTHER: %i\n", num, numtcp, numudp, numicmp, numother);
+		if (filter_src || filter_dst) {
+			printf("Filters:   ");
+			if (filter_src)  {
+				printf("Source: %s",src_filter.c_str());
+				if (filter_dst)
+					printw(" -- ");
+			}
+			if (filter_dst )
+				printf("Destination: %s",dst_filter.c_str());
+			printf("\n");
+		}
 		printf(format, "Source", "Destination", "Proto", "State", "TTL");
-		for (temp=0; temp < num; temp++) {
-			printline(stable[temp],lookup,single,format);
+		for (tmpint=0; tmpint < num; tmpint++) {
+			printline(stable[tmpint],lookup,single,format);
 		}
 		exit(0);
 	}
-
 
 	// From here on out we're not in single
 	// run mode, so lets do the curses stuff
@@ -470,14 +532,28 @@ while(1) {
 	printw("%-20s\n", " to change sorting");
 	if (totals)
 		printw("Total States: %i -- TCP: %i UDP: %i ICMP: %i OTHER: %i\n",num,numtcp,numudp,numicmp,numother);
+	if (filter_src || filter_dst) {
+		attron(A_BOLD);
+		printw("Filters:   ");
+		attroff(A_BOLD);
+		if (filter_src)  {
+			printw("Source: %s",src_filter.c_str());
+			if (filter_dst)
+				printw(" -- ");
+		}
+		if (filter_dst )
+			printw("Destination: %s",dst_filter.c_str());
+		printw("\n");
+	}
+
 	attron(A_BOLD);
 	printw(format, "Source", "Destination", "Proto", "State", "TTL");
 	attroff(A_BOLD);
 
 	//print the state table
-	for (temp=0; temp < num; temp++) {
-		printline(stable[temp],lookup,single,format);
-		if (temp >= maxy-4 || (totals && temp >= maxy-5))
+	for (tmpint=0; tmpint < num; tmpint++) {
+		printline(stable[tmpint],lookup,single,format);
+		if (tmpint >= maxy-4 || (totals && tmpint >= maxy-5))
 			break;
 	}
 	
@@ -492,25 +568,29 @@ while(1) {
 	FD_SET(0, &readfd);
 	select(1,&readfd, NULL, NULL, &selecttimeout);
 	if (FD_ISSET(0, &readfd)) {
-		temp = wgetch(stdscr);
-		if (temp == 'q') {
+		tmpint = wgetch(stdscr);
+		if (tmpint == 'q') {
 			//EXIT
 			break;
-		} else if (temp == 's') {
+		} else if (tmpint == 's') {
 			if (sortby <6)
 				sortby++;
 			else
 				sortby=0;
-		} else if (temp == 'r') {
+		} else if (tmpint == 'r') {
 			sort_factor = -sort_factor;
-		} else if (temp == 'f') {
+		} else if (tmpint == 'f') {
 			skiplb = !skiplb;
-		} else if (temp == 'l') {
+		} else if (tmpint == 'l') {
 			lookup = !lookup;
-		} else if (temp == 't') {
+		} else if (tmpint == 't') {
 			totals = !totals;
-		} else if (temp == 'd') {
+		} else if (tmpint == 'd') {
 			defaultsize = !defaultsize;
+		} else if (tmpint == 'n') {
+			skipdns = !skipdns;
+		} else if (tmpint == 'm') {
+			tag_truncate = !tag_truncate;
 		}
 	}
 
@@ -518,10 +598,11 @@ while(1) {
 } // end while(1)
 
 // Take down the curses stuff
+printw("\n");
+curs_set(1);
 nocbreak();
 endwin();
 
-cout << endl;
 
 // And we're done
 return(0);
@@ -631,23 +712,25 @@ int dname_sort(const void *a, const void *b) {
 
 
 void printline(table stable, bool lookup, bool single, char *format) {
-	//rather be safe than sorry. Is there a limit on URL sizes?
-	char buffer[100];
+	ostringstream buffer;
+	buffer.str("");
 	string src,dst;
 	
 	if (stable.proto == "tcp" || stable.proto == "udp") {
 		if (lookup && (stable.sname != "")) {
-			snprintf(buffer,100,"%s%s%i",stable.sname.c_str(),",",stable.srcpt);
+			buffer << stable.sname << ":" << stable.srcpt;
 		} else {
-			snprintf(buffer,100,"%s%s%i",inet_ntoa(stable.src),",",stable.srcpt);
+			buffer << inet_ntoa(stable.src) << ":" << stable.srcpt;
 		}
-		src = buffer;
+		src = buffer.str();
+		buffer.str("");
 		if (lookup && (stable.dname != "")) {
-			snprintf(buffer,100,"%s%s%i",stable.dname.c_str(),",",stable.dstpt);
+			buffer << stable.dname << ":" << stable.dstpt;
 		} else {
-			snprintf(buffer,100,"%s%s%i",inet_ntoa(stable.dst),",",stable.dstpt);
+			buffer << inet_ntoa(stable.dst) << ":" << stable.dstpt;
 		}
-		dst = buffer;
+		dst = buffer.str();
+		buffer.str("");
 	} else {
 		if (lookup && (stable.sname != "")) {
 			src = stable.sname;
@@ -665,3 +748,12 @@ void printline(table stable, bool lookup, bool single, char *format) {
 	else
 		printw(format, src.c_str(), dst.c_str(), stable.proto.c_str(), stable.state.c_str(), stable.ttl.c_str());	
 }
+
+void check_ip(const char *arg) {
+	in_addr tmp_addr;
+	if (inet_aton(arg,&tmp_addr) == 0) {
+		cerr << "Invalid IP address: " << arg << endl;
+		exit (-1);
+	}
+}
+
