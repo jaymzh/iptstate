@@ -1,6 +1,6 @@
   IP Tables State (iptstate)
 
-  Copyright (C) 2002 - 2005 Phil Dibowitz
+  Copyright (C) 2002 - 2006 Phil Dibowitz
 
   This software is provided 'as-is', without any express or
   implied warranty. In no event will the authors be held
@@ -27,7 +27,7 @@ NOTE: If you are planning on packaging and/or submitting my
 software for/to a Linux Distribution, EMAIL ME FIRST!!!
 
 
-IPTState Version 1.4
+IPTState Version 2.0
 
 
 1. WHAT IS IP TABLES STATE?
@@ -47,7 +47,10 @@ IPTState Version 1.4
 	- Reversible sorting
 	- Single display of state table
 	- Customizable refresh rate
+	- Display filtering
+	- Color-coding
 	- Open Source (specifically I'm using the zlib license)
+	- much more...
 	
 
 2. PRE-INSTALATION
@@ -65,7 +68,7 @@ IPTState Version 1.4
 	For most people the following should do all you need:
 
 	  make
-	  make install
+	  make install      <--- this must be done as root
 
 
   The long version:
@@ -90,8 +93,9 @@ IPTState Version 1.4
 	email include: Distribution, kernel version, make version,
 	gcc version, libc version, and the error messages.
 
-	Package maintainers my wish to override CXXFLAGS:
-	 # CXXFLAGS=-O2 make
+	Package maintainers may wish to override CXXFLAGS, and can
+	do so like so:
+	 # CXXFLAGS=-O3 make
 	and/or use "make strip" which will build iptstate and then
 	strip it.
 
@@ -104,13 +108,13 @@ IPTState Version 1.4
 	  Installing
 	IPTState installs in /usr/sbin. This is because it should
 	be a utility for the superuser. In recent versions of
-	iptables, /proc/net/ip_conntrac is only readable by root
+	iptables, /proc/net/ip_conntrack is only readable by root
 	anyway. Installing should be as simple as 'make 
 	install.' If this fails, feel free to do:
 	 # cp iptstate /usr/sbin/iptstate
 	 # chmod 755 /usr/sbin/iptstate
 	 # chown root:bin /usr/sbin/iptstate
-	 # cp man/man1/iptstate.1 /usr/share/man/man1/iptstate.1
+	 # cp man/man1/iptstate.8 /usr/share/man/man1/iptstate.8
 	 # chmod 444 /usr/share/man/man1/iptstate.1
 	And that should do it. If 'make install' fails feel free
 	to drop me an email provided you put "IPTSTATE:" in the 
@@ -123,16 +127,20 @@ IPTState Version 1.4
   IPTables State is extremely simple to use. Most of the time
   what you'll want is just 'iptstate.' This will launch you into
   the 'statetop' mode. In here, your state table is being sorted
-  by Source IP. To change the sorting, on the fly, type 's.' This
+  by Source IP. To change the sorting, on the fly, type 'b.' This
   will rotate through the various sorting possibilities. You can
   quit by typing 'q.' You can also change the sorting with the -b
-  ("sort BY") option. The -b option takes d (Destination IP), p 
-  (protocol), s (state) and t (TTL) as it's possible options. To
-  sort by Source IP, just don't specify -b.
+  ("sort BY") option. The -b option takes d (Destination IP), D
+  (Destination Port), S (Source IP), p (protocol), s (state) and
+  t (TTL) as it's possible options. To sort by Source IP, just
+  don't specify -b.
 
   You can also change the refresh rate of the statetop by -r 
   followed by an integer. The integer represents the refresh rate
   in seconds.
+
+  To get help, hit 'h' from withint iptstate, or run iptstate
+  with the '--help' option.
 
   To get a quick look at what's going across your firewall, try 
   iptstate -s. This is "single run" mode. It will just print out
@@ -140,8 +148,9 @@ IPTState Version 1.4
   -b comes in handy. Again, the default sort is by Source IP.
 
   NOTE WELL: This is not meant to be a comprehensive guide. There
-  are many other features - check the man page and the -h option
-  for more information. But this should give you the basics.
+  are many other features - check the man page, the -h option,
+  and the interactive help page within iptstate for more
+  information. But this should give you the basics.
 
 
 5. DESIRED FEATURES
@@ -162,9 +171,9 @@ IPTState Version 1.4
 
 7. THE AUTHOR
 
-  IPTState was written by me, Phil Dibowitz. I am a UNIX Systems
-  Administrator at USC maintaining, architecting, and administering
-  infrastructure Solaris systems. I maintain the FAQ for IP Filter,
+  IPTState was written by me, Phil Dibowitz. I am a Senior UNIX
+  Systems Administrator at Ticketmaster maintaining the web
+  infrastructure. Additionally, I maintain the FAQ for IP Filter,
   run the MSS Initiative, document IP Filter, and do other open-source
   work. For more info on me, check out http://www.phildev.net/
 

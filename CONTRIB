@@ -18,6 +18,8 @@ Cristian Ionescu-Idbohrn is the maintainer of the IPTState package for
 floppyfw.  
 Roland Illig is the maintainer of the IPTState package for pkgsrc.
 Bruce Smith is the maintainer of the IPTState package for Devil Linux.
+Warren Togami is the maintainer of the IPTState package for Fedora Linux.
+twoerner@redhat.com is the maintainer of the IPTState package for Redhat Linux.
 
 OTHER
 Some people who helped me get this project started were Jullian Gomez, 
@@ -28,6 +30,14 @@ Other contributions follow based on version. If you contributed something
 and you are not listed here, let me know, it's easy to forget to list
 people. Also note that if you're in the Changelog, you may not be here:
 
+
+2.0
+- Thanks to Ted Faber for his extensive coding knowledge
+- Thanks to Garrick Stapples for his help figuring out ncurses pads and scrolling
+- Thanks Bill Hudacek for the formatting bug report.
+
+1.4
+-
 
 1.3
 - Steve Augart finally proved the memory leak was in ncurses. Just in

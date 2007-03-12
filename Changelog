@@ -1,3 +1,34 @@
+2.0
+- Released 10/04/06
+- Moved man page to section 8
+- Significantly re-factored code
+- Fix long-protocol-names-break-formatting bug
+  (reported by Bill Hudacek <hudaceks@verizon.net>)
+- Move all flag bools into a new flags_t struct
+- Move format-decisions to end
+- Move all counters into a new counters_t struct
+- Make the stable vector dynamic instead of a huge pre-allocation
+- Move many variables to #defines
+- Fix bug in "totals" line (numbers didn't always add up)
+- Add display of skipped entries on "totals" line
+- Move various char*'s to strings.
+- Move most snprintf()s to stringstreams.
+- Rewrite and significantly improve dynamic sizing of columns
+- Add a new interactive help window
+- Add srcpt and dstpt filtering
+- Add long options
+- Make interactive help scroll-able
+- Make main window scroll-able
+- Make having the main window be scrollable configurable and if not scrollable
+  then use stdscr instead of a pad. Make this togglable interactively.
+- Redo command-line options so they match interactive options
+- Add ability to change all filters and the refresh rate interactively
+- Handle window resizes (SIGWINCH) properly
+- If we can't read ip_conntrack, error and exit rather than fail
+  silently
+- Cleanup nicely if we get killed (SIGINT or SIGTERM)
+- Add color-coding of protocols
+
 1.4
 - Released 04/16/05
 - Added display of filters

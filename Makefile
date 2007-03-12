@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2002 - 2005 Phil Dibowitz.
+# Copyright (C) 2002 - 2006 Phil Dibowitz.
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 1.4
+# Makefile for IPTState verion 2.0
 #
 
 ### USERS CAN CHANGE STUFF HERE
@@ -17,7 +17,7 @@ MAN?=$(PREFIX)/share/man
 ### ADVANCED USERS AND PACKAGERS MIGHT WANT TO CHANGE THIS
 
 CXX?= g++
-CXXFLAGS?= -g -Wall
+CXXFLAGS?= -g -Wall -O2
 CXXFILES?= iptstate.cc
 LIBS?= -lncurses
 
@@ -53,12 +53,12 @@ iptstate:	iptstate.cc
 
 strip:	iptstate
 	$(STRIP) iptstate
-	@touch strip
+	@touch .strip
 
 
 install:
 	$(INSTALL) -D --mode=755 iptstate $(SBIN)/iptstate
-	$(INSTALL) -D --mode=444 iptstate.1 $(MAN)/man1/iptstate.1
+	$(INSTALL) -D --mode=444 iptstate.8 $(MAN)/man8/iptstate.8
 
 
 clean:
@@ -69,4 +69,5 @@ clean:
 uninstall:
 	/bin/rm -rf $(SBIN)/iptstate
 	/bin/rm -rf $(MAN)/man1/iptstate.1
+	/bin/rm -rf $(MAN)/man8/iptstate.8
 

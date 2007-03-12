@@ -14,8 +14,9 @@ day or more). This bug has been reported to ncurses, see above URL.
 
 ABOUT BUGS
   If you find a bug in IPTState you should notify ME! You can contact me at
-phil@ipom.com. Don't send bug reports to public forums until AFTER you 
-notify me.
+phil@ipom.com. Sending a bug to your distro or some public forum is not
+going to let me know. I can't fix things I don't know about. So please email
+ME.
 
 ABOUT MY RESPONSE
   If your bug is serious - i.e. compilation errors, a major a functionality
@@ -40,11 +41,13 @@ me a lot of time, and I'll like you more.
 ABOUT BUG REPORTS
   If you send me a bug report you MUST do the following:
 - Include "IPTSTATE" in the subject
+- Include your iptstate version
 - Include your distribution and distro version
 - Include your kernel version
 - Include your gcc version
 - Include your make version
 - Include your glibc version
+- Include your ncurses version
 - Include any relevant output and/or errors
 
   Bug reports should be sent to *ME*. I cannot fix your bugs if you don't

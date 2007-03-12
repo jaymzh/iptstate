@@ -1,5 +1,5 @@
 %define name iptstate
-%define version	1.4
+%define version	2.0
 %define release 1
 
 Name: %{name}
@@ -39,6 +39,6 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(755, root, bin, 755)
 /usr/sbin/%{name}
-/usr/share/man/man1/%{name}.1*
+/usr/share/man/man8/%{name}.8*
 %doc README BUGS Changelog LICENSE CONTRIB WISHLIST
 
