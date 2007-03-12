@@ -1,41 +1,41 @@
 /*
-  iptstate.cc
-  IPTables State
-
-  -----------------------------------
-
-  Copyright (C) 2002 Phil Dibowitz
-
-  This software is provided 'as-is', without any express or
-  implied warranty. In no event will the authors be held
-  liable for any damages arising from the use of this software.
-
-  Permission is granted to anyone to use this software for any
-  purpose, including commercial applications, and to alter it
-  and redistribute it freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you
-  must not claim that you wrote the original software. If you use
-  this software in a product, an acknowledgment in the product
-  documentation would be appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and
-  must not be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source
-  distribution.
-
-  -----------------------------------
-
-  The idea of statetop comes from IP Filter by Darren Reed.
-
-  This package's main purpose is to provide a state-top type
-  interface for IP Tables. I've added in the "single run"
-  option since there's no nice way to do that either.
-
-  NOTE: IF YOU WANT TO PACKAGE THIS SOFTWARE FOR A 
-  LINUX DISTRIBUTION, CONTACT ME!
-
+* iptstate.cc
+* IPTables State
+*
+*  -----------------------------------
+*
+* Copyright (C) 2002 - 2003 Phil Dibowitz
+*
+* This software is provided 'as-is', without any express or
+* implied warranty. In no event will the authors be held
+* liable for any damages arising from the use of this software.
+*
+* Permission is granted to anyone to use this software for any
+* purpose, including commercial applications, and to alter it
+* and redistribute it freely, subject to the following restrictions:
+*
+* 1. The origin of this software must not be misrepresented; you
+* must not claim that you wrote the original software. If you use
+* this software in a product, an acknowledgment in the product
+* documentation would be appreciated but is not required.
+*
+* 2. Altered source versions must be plainly marked as such, and
+* must not be misrepresented as being the original software.
+*
+* 3. This notice may not be removed or altered from any source
+* distribution.
+*
+*  -----------------------------------
+*
+* The idea of statetop comes from IP Filter by Darren Reed.
+*
+* This package's main purpose is to provide a state-top type
+* interface for IP Tables. I've added in the "single run"
+* option since there's no nice way to do that either.
+*
+* NOTE: IF YOU WANT TO PACKAGE THIS SOFTWARE FOR A 
+* LINUX DISTRIBUTION, CONTACT ME!
+*
 */ 
 
 #include <iostream>
@@ -58,7 +58,7 @@ using namespace std;
 //
 // GLOBAL CONSTANTS
 //
-const string VERSION="1.2.1";
+const string VERSION="1.3";
 // Maybe one day I'll get this from kernel params
 const int MAXCONS=16384;
 const int MAXFIELDS=20;
@@ -101,21 +101,22 @@ int main(int argc, char *argv[]) {
 // Variables
 string line, src, dst, srcpt, dstpt, proto, code, type, state, 
 	ttl, mins, secs, hrs, sorting, crap;
-char ttlc[11], *format = "%-21s %-21s %-7s %-12s %-7s\n";
+char ttlc[11], foo[3], format[30] = "%-21s %-21s %-7s %-12s %-7s\n";
 vector<table> stable(MAXCONS);
 vector<string> fields(MAXFIELDS);
 int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1,
-	numtcp=0, numudp=0, numicmp=0, numother=0;
+	numtcp=0, numudp=0, numicmp=0, numother=0, reslength=21;
 timeval selecttimeout;
 fd_set readfd;
-bool single = false, totals = false, lookup = false, skiplb = false;
-struct hostent* hostinfo;
-struct protoent* pe;
+bool single = false, totals = false, lookup = false, skiplb = false,
+	defaultsize = false;
+struct hostent* hostinfo = NULL;
+struct protoent* pe = NULL;
 unsigned int length;
 
 
 // Command Line Arguments
-while ((temp = getopt(argc,argv,"sfhtlRr:b:")) != EOF) {
+while ((temp = getopt(argc,argv,"sdfhtlRr:b:")) != EOF) {
 	switch (temp) {
 		case 's':
 			single = true;
@@ -145,9 +146,13 @@ while ((temp = getopt(argc,argv,"sfhtlRr:b:")) != EOF) {
 		case 'f':
 			skiplb = true;
 			break;
+		case 'd':
+			defaultsize = true;
+			break;
 		case 'h':
 			cout << "IPTables State Version " << VERSION << endl;
-			cout << "Usage: iptstate [-fhlRst] [-r rate] [-b [d|p|s|t]]\n";
+			cout << "Usage: iptstate [-dfhlRst] [-r rate] [-b [d|p|s|t]]\n";
+			cout << "	d: Do not dynamically choose sizing, use default\n";
 			cout << "	f: Filter loopback\n";
 			cout << "	h: This help message\n";
 			cout << "	l: Show hostnames instead of IP addresses\n";
@@ -161,7 +166,8 @@ while ((temp = getopt(argc,argv,"sfhtlRr:b:")) != EOF) {
 			cout << "	   p: Protocol\n";
 			cout << "	   s: State\n";
 			cout << "	   t: TTL\n";
-			cout << "	   (to sort by Source IP (or Name), don't use -b)\n";
+			cout << "	   (to sort by Source IP (or Name), don't use -b)\n\n";
+			cout << "See man iptstate(1) for more information.\n";
 			exit(0);
 			break;
 	}
@@ -178,10 +184,57 @@ if (!single) {
 	noecho();
 }
 
+
+
 // We want to keep going until the user stops us 
 // unless they use single run mode
 // in which case, we'll deal with that down below
 while(1) {
+
+	// Lets get the terminal size in the most
+	// reliable way possible
+	if (!single) {          
+		getmaxyx(stdscr, maxy, maxx);
+	} else {                             
+		maxx=72;
+		if (getenv("COLS"))
+			maxx=atoi(getenv("COLS"));
+	}
+
+	// OK, now we have maxy and maxx, lets use 'em
+	if (defaultsize && maxx >= 72) {
+		strncpy(format,"%-21s %-21s %-7s %-12s %-7s\n",30);
+		reslength = 21;
+	} else if (maxx > 72) {                                      
+		// TTL, proto and state should probably stay constant
+		// so we won't worry about them. They're total       
+		// is 30. We want a space on either side for
+		// aesthetics, plus make room for xterm scrollbars
+		// and the like
+		temp=(maxx-34)/2;
+		if (temp > 99) { 
+			temp = 99;
+	               }                 
+		snprintf(foo,3,"%2i",temp);
+		// Since + isn't defined for char[3]
+		// We get to do it piece by piece!! Yay!!
+		crap = "\%-";
+		crap += foo; 
+		crap += "s \%-"; 
+		crap += foo;     
+		crap += "s \%-7s \%-12s \%-7s\n";
+		strncpy(format,crap.c_str(),30);
+		reslength=temp;
+	} else if (maxx < 72) {
+		nocbreak();                  
+		endwin();  
+		cout << endl;
+		cout << "I'm sorry, your terminal must be atleast 72 columns wide to run iptstate.\n";
+		exit(0);
+	}
+
+
+	// And now on with the show...
 	num = 0;
 	numtcp = 0;
 	numudp = 0;
@@ -289,18 +342,18 @@ while(1) {
 
 		// Resolve Names if we need to
 		if (lookup) {
-			if ((hostinfo = gethostbyaddr(&stable[num].src,sizeof(stable[num].src), AF_INET)) != NULL) {
+			if ((hostinfo = gethostbyaddr((char *)&stable[num].src,sizeof(stable[num].src), AF_INET)) != NULL) {
 				stable[num].sname = hostinfo->h_name;
 				if (stable[num].proto == "tcp" || stable[num].proto == "udp") {
 					// We truncate the Source from the right
 					// Since they are all likely from the same
 					// domain anyway
-					// Note Length is 21 - 1(for comma) - port
-					length = 20 - digits(stable[num].srcpt);
+					// Note Length is reslength - 1(for comma) - 1 (need a space) - port
+					length = reslength - 2 - digits(stable[num].srcpt);
 					if (stable[num].sname.size() > length)
 						stable[num].sname = stable[num].sname.substr(0,length);
 				} else {
-					length = 21;
+					length = reslength;
 					if (stable[num].sname.size() > length)
 						stable[num].sname = stable[num].sname.substr(0,length);
 				}
@@ -308,22 +361,23 @@ while(1) {
 				//this else is here for troubleshooting
 				//herror("gethostbyaddr");
 			}
-			if ((hostinfo = gethostbyaddr(&stable[num].dst,sizeof(stable[num].dst),AF_INET)) != NULL) {
+			if ((hostinfo = gethostbyaddr((char *)&stable[num].dst,sizeof(stable[num].dst),AF_INET)) != NULL) {
 				stable[num].dname = hostinfo->h_name;
 				if (stable[num].proto == "tcp" || stable[num].proto == "udp") {
 					// We truncate the Destination from the left
 					// Since "images.server4" doens't help -- we want domains
-					length = 20 - digits(stable[num].dstpt);
+					length = reslength - 1 - digits(stable[num].dstpt);
 					if (stable[num].dname.size() > length)
 						stable[num].dname = stable[num].dname.substr(stable[num].dname.size()-length,length);
 				} else {
-					length = 21;
+					length = reslength;
 					if (stable[num].dname.size() > length)
 						stable[num].dname = stable[num].dname.substr(stable[num].dname.size()-length,length);
 				}
 			} else {
 				//herror("gethostbyaddr");
 			}
+			
 		}
 
 		// How many lines have we printed?
@@ -372,6 +426,8 @@ while(1) {
 	if (sort_factor == -1)
 		sorting = sorting + " reverse";
 	
+
+
 	// if in single line mode, do everything and exit
 	if (single) {
 		// print the state table
@@ -382,7 +438,7 @@ while(1) {
 		// at the same time
 		if (totals)
 			printf("Total States: %i -- TCP: %i UDP: %i ICMP: %i OTHER: %i\n", num, numtcp, numudp, numicmp, numother);
-		printf(format, "Source IP", "Destination IP", "Proto", "State", "TTL");
+		printf(format, "Source", "Destination", "Proto", "State", "TTL");
 		for (temp=0; temp < num; temp++) {
 			printline(stable[temp],lookup,single,format);
 		}
@@ -393,7 +449,6 @@ while(1) {
 	// From here on out we're not in single
 	// run mode, so lets do the curses stuff
 	erase();
-	getmaxyx(stdscr, maxy, maxx);
 	move (0,0);
 
 	// Why y comes BEFORE x I have NO clue
@@ -416,7 +471,7 @@ while(1) {
 	if (totals)
 		printw("Total States: %i -- TCP: %i UDP: %i ICMP: %i OTHER: %i\n",num,numtcp,numudp,numicmp,numother);
 	attron(A_BOLD);
-	printw(format, "Source IP", "Destination IP", "Proto", "State", "TTL");
+	printw(format, "Source", "Destination", "Proto", "State", "TTL");
 	attroff(A_BOLD);
 
 	//print the state table
@@ -439,6 +494,7 @@ while(1) {
 	if (FD_ISSET(0, &readfd)) {
 		temp = wgetch(stdscr);
 		if (temp == 'q') {
+			//EXIT
 			break;
 		} else if (temp == 's') {
 			if (sortby <6)
@@ -453,6 +509,8 @@ while(1) {
 			lookup = !lookup;
 		} else if (temp == 't') {
 			totals = !totals;
+		} else if (temp == 'd') {
+			defaultsize = !defaultsize;
 		}
 	}
 

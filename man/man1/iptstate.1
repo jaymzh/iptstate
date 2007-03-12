@@ -1,7 +1,7 @@
 .\" Process this file with
 .\" groff -man -Tascii iptstate.1
 .\"
-.TH IPTSTATE 1 "APRIL 2002" "" ""
+.TH IPTSTATE 1 "MAY 2003" "" ""
 .\"
 .\" Man page written by Phil Dibowitz <phil@ipom.com>
 .\"
@@ -39,8 +39,11 @@ State
 .B "    t"
 TTL
 .TP
+.B -d
+Do not dynamically size the window based on terminal sizing information; instead use default iptstate sizing.
+.TP
 .B -f
-Filter anything on loopback
+Filter anything on loopback.
 .TP
 .B -h
 Display help message.
@@ -49,7 +52,7 @@ Display help message.
 Resolve all IP address to domain names. This truncates from the Source address from the right (you know your own domain) and destination addresses from the left (domains are most helpful here). Warning: this can take a long time to startup due to all the resolving.
 .TP
 .BI "-r " "seconds"
-This tells IPTState what the refresh you want (ignored when used with -s).
+This tells IPTState what refresh rate you want (ignored when used with -s).
 .TP
 .B -R
 Sort in reverse.
@@ -61,6 +64,9 @@ Single-run mode. This will print the state table formatted on the screen once wi
 Show totals (total states, total TCP states, etc.)
 .SH "INTERACTIVE OPTIONS"
 The following my be used while IPTState is running to change its behavior (unless you use -s).
+.TP
+.B d
+Toggle between letting iptstate dynamically size the columns and using the old default sizes
 .TP
 .B f
 Toggle filtering of loopback
@@ -95,6 +101,8 @@ and
 for more information on bug reports. Please read the
 .B WISHLIST
 before sending in features you hope to see.
+.SH NOTES
+The truncation of names in lookup mode happens from the right for source because you most likely know your own domain name, and from the left for destination because knowing your users are connection to "mail.a." doesn't help much.
 .SH SEE ALSO
 .BR iptables (1)
 .br
@@ -103,4 +111,4 @@ IPTState (and this man page) was written by
 .br
 Phil Dibowitz <phil@ipom.com>
 .br
-http://home.earthlink.net/~jaymzh666/
+http://www.phildev.net/iptstate/

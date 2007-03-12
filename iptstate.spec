@@ -1,5 +1,5 @@
 %define name iptstate
-%define version	1.2.1
+%define version	1.3
 %define release 1
 
 Name: %{name}
@@ -8,8 +8,8 @@ Version: %{version}
 Release: %{release}
 Group: Monitoring
 License: zlib License
-Source: http://home.earthlink.net/~jaymzh666/iptstate/%{name}-%{version}.tar.gz
-URL: http://home.earthlink.net/~jaymzh666/iptstate/
+Source: http://www.phildev.net/iptstate/%{name}-%{version}.tar.gz
+URL: http://www.phildev.net/iptstate/
 BuildRoot: %{_tmppath}/%{name}-buildroot
 BuildRequires: libncurses.so.5 libgpm.so.1
 
@@ -39,5 +39,6 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(755, root, bin, 755)
 /usr/sbin/%{name}
-/usr/share/man/man1/%{name}.1.gz
+/usr/share/man/man1/%{name}.1*
 %doc README BUGS Changelog LICENSE CONTRIB WISHLIST
+

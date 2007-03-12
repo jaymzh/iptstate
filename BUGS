@@ -1,12 +1,16 @@
 IPTState Bugs
 
 KNOWN BUGS
-  The only known bug at this point is a memory leak. If you have a lot of
-traffic I don't recommend leaving IPTState running overnight on your
-firewall because it may run out of memory. Since I don't use any dynamic
-data structures I have not been able to find the memory leak, but feel free
-to try. Fixing this bug, or leading to the fix of this bug will get your name
-here - immortalized for ever. Or something. =)
+None*
+
+
+* There are no known bugs in the iptstate code. However, there IS a small
+bug somewhere in ncurses. See 
+http://www.phildev.net/iptstate/memleak.html for details.
+This won't effect most users much, but you want to be weary of leaving
+iptstate running on very busy firewalls for very long periods of time (a
+day or more). This bug has been reported to ncurses, see above URL.
+
 
 ABOUT BUGS
   If you find a bug in IPTState you should notify ME! You can contact me at
@@ -14,10 +18,10 @@ phil@ipom.com. Don't send bug reports to public forums until AFTER you
 notify me.
 
 ABOUT MY RESPONSE
-  If your bug is serious - i.e. compilation errors, or major a functionality
-is broken, I'll usually give you pretty immediate attention. If it's a
-very minor bug, or a feature request, I will acknowledge your email, but I
-may not fix/implement it immediately.
+  If your bug is serious - i.e. compilation errors, a major a functionality
+is broken, or a security problem I'll usually give you pretty immediate
+attention. If it's a very minor bug, or a feature request, I will
+acknowledge your email, but I may not fix/implement it immediately.
 
 ABOUT PATCHES
   I do accept patches - I just don't usually use them. So you ask, 'so why
@@ -46,3 +50,4 @@ tell *ME* about them. That's right, send your bug reports to *ME*.
 
 Phil Dibowitz
 phil@ipom.com
+
