@@ -1,0 +1,158 @@
+.\" Process this file with
+.\" groff -man -Tascii iptstate.1
+.\"
+.TH IPTSTATE 8 "OCTOBER 2006" "" ""
+.\"
+.\" Man page written by Phil Dibowitz <phil@ipom.com>
+.\"
+.\" IPTState is copyright by Phil Dibowitz. Please see the README and LICENSE.
+.\"
+.SH NAME 
+.B iptstate
+\- A top-like display of IP Tables state table entries
+
+.SH SYNOPSIS
+.B iptstate 
+.RB [< options >]
+
+.SH DESCRIPTION
+.B iptstate
+displays information held in the IP Tables state table in real-time in a top-like format.
+Output can be sorted by any field, or any field reversed. Users can choose to have the output only print once and exit, rather than the top-like system. Refresh rate is configurable, IPs can be resolved to names, output can be formatted, the display can be filtered, and color coding are among some of the many features.
+
+.SH COMMAND\-LINE OPTIONS
+.TP
+.B -c, --no-color
+Toggle color-code by protocol
+.TP
+.B -d, --dst-filter \fIIP\fP
+Only show states with a destination of \fIIP\fP
+Note, that this must be an IP, hostname matching is not yet supported.
+.TP
+.B -D --dstpt-filter \fIport\fP
+Only show states with a destination port of \fIport\fP
+.TP
+.B -h, --help
+Show help message
+.TP
+.B -l, --lookup
+Show hostnames instead of IP addresses
+.TP
+.B -m, --mark-truncated
+Mark truncated hostnames with a '+'
+.TP
+.B -o, --no-dynamic
+Toggle dynamic formatting
+.TP
+.B -L, --no-dns
+Skip outgoing DNS lookup states
+.TP
+.B -f, --no-loopback
+Filter states on loopback
+.TP
+.B -p, --no-scroll
+No scrolling (don't use a "pad"). See \fBSCROLLING AND PADS\fP for more information.
+.TP
+.B -r, --reverse
+Reverse sort order
+.TP
+.B -R, --rate \fIseconds\fP
+Refresh rate, followed by rate in \fIseconds\fP. Note that this is for statetop mode, and not applicable for single-run mode (--single).
+.TP
+.B -1, --single
+Single run (no curses)
+.TP
+.B -b, --sort \fIcolumn\fP
+This determines what column to sort by. Options:
+.br
+.B "	S"
+Source Port
+.br
+.B "	d"
+Destination IP (or Name)
+.br
+.B "	D"
+Destination Port
+.br
+.B "	p"
+Protocol
+.br
+.B "	s"
+State
+.br
+.B "	t"
+TTL
+.br
+To sort by Source IP (or Name), don't use -b
+.TP
+.B -s, --src-filter \fIIP\fP
+Only show states with a source of \fIIP\fP. Note, that this must be an IP, hostname matching is not yet supported.
+.TP
+.B -S, --srcpt-filter \fIport\fP
+Only show states with a source port of \fIport\fP
+.TP
+.B -t, --totals
+Toggle display of totals
+.TP
+.B space
+Immediately update the display.
+.TP
+.B ctrl-L
+Immediately re-draw the display. IPTState should gracefully handle all window resizes, but if it doesn't, you can force it to re-calculate and re-draw the screen with a ctrl-L.
+
+.SH INTERACTIVE OPTIONS
+As of version 2.0, all command-line options are now available interactively using the same key as the short-option. For example, \fB--sort\fP is also \fB-b\fP, so while \fBiptstate\fP is running, hitting \fBb\fP will change the sorting. Similarly, \fBt\fP toggles the display of totals, and so on.
+.PP
+In many cases, \fBiptstate\fP needs to prompt you in order to change something. For example, if you want to set or change the source-ip filter, when you hit \fBs\fP, \fBiptstate\fP will pop up a prompt at the top of the window to ask you what you want to set it to.
+.PP
+Note that like many UNIX applications, ctrl-G will tell \fBiptstae\fP "nevermind" - it'll remove the prompt and forget you ever hit \fBs\fP.
+.PP
+In most cases, a blank response means "clear" - clear the source IP filter, for example.
+.PP
+At anytime while \fBiptstate\fP is running, you can hit \fBh\fP to get to the \fBinteractive help\fP which will display all the current settings to you as well give you a list of all interactive commands available.
+
+.SH SCROLLING AND PADS
+For almost any user, there is no reason to turn off scrolling. The ability to turn this off - and especially the ability to toggle this interactively - is done more for theoretical completeness than anything else.
+.TP
+But, nonetheless, here's the details. Typically in a curses application you create a "window." Windows don't scroll, however. They are the size of your terminal. Windows provide double-buffering to make refreshing as fast and seemless as possible. However, to enable scrolling, one has to use "pads" instead of windows. Pads can be bigger than the current terminal. Then all necessary data is written to the pad, and "scrolling" becomes a function of just showing the right part of that pad on the screen.
+.TP
+However, pads do not have the double-buffering feature that windows have. Thus, there _might_ be some case where for some user using some very strange machine, having scrolling enabled could cause poor refreshing. Given the nature of the way \fBiptstate\fP uses the screen though, I find this highly unlikely. In addition, the scrolling method uses a little more memory. However, \fBiptstate\fP is not a memory intensive application, so this shouldn't be a problem even on low-memory systems.
+.TP
+Nonetheless, if this does negatively affect you, the option to turn it off is there.
+
+.SH EXIT STATUS
+Anything other than 0 indicates and error. A list of current exit statuses are below:
+.TP
+.B 0
+Success
+.TP
+.B 1
+Bad command-line arguments
+.TP
+.B 2
+Couldn't open ip_conntrack
+.TP
+.B 3
+Terminal too narrow
+
+.SH BUGS
+There are no known bugs at this time.
+
+.SH BUG REPORTS
+All bugs should be reported to Phil Dibowitz <phil@ipom.com>, \fBNOT\fR your local distribution bug list. Please see the \fBREADME\fR and \fBBUGS\fR for more information on bug reports. Please read the \fBWISHLIST\fR before sending in features you hope to see.  
+
+.SH NOTES
+\fBiptstate\fP does a lot of work to try to fit everything on the screen in an easy-to-read way. However, in some cases, hostnames may need to be truncated in lookup mode. The truncation of names in lookup mode happens from the right for source because you most likely know your own domain name, and from the left for destination because knowing your users are connection to "mail.a." doesn't help much.
+.PP
+\fBiptstate\fP does not handle automatically handle window-resizes while in the \fBinteractive help\fP screen. If you do resize while in this window, you should return to the main window, hit \fBctrl-L\fP to re-calculate and re-draw the screen, and then, if you choose, return to the \fBinteractive help\fP.
+.PP
+Reading out of /proc/net/ip_conntrack (which \fBiptstate\fP does) can be be racy on SMP systems, and can hurt performance on very heavily loaded firewalls.
+
+.SH SEE ALSO
+.BR iptables (8)
+.PP
+
+.SH AUTHOR
+\fBiptstate\fP was written by Phil Dibowitz <phil@ipom.com>
+.br
+http://www.phildev.net/iptstate/
