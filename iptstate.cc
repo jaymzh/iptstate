@@ -64,7 +64,7 @@
 #include <math.h>
 using namespace std;
 
-#define VERSION "2.0"
+#define VERSION "2.1"
 #define CONNTRACK "/proc/net/ip_conntrack"
 #define MAXCONS 16384
 #define MAXFIELDS 20
@@ -279,8 +279,8 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 					<< endl;
 				exit(1);
 			}
-			flags.filter_dstpt = true;
-			filters.dstpt = optarg;
+			flags.filter_dst = true;
+			filters.dst = optarg;
 			break;
 		// --dstpt-filter
 		case 'D':
@@ -296,8 +296,8 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 					<< endl;
 				exit(1);
 			}
-			flags.filter_dst = true;
-			filters.dst = optarg;
+			flags.filter_dstpt = true;
+			filters.dstpt = optarg;
 			break;
 		// --help
 		case 'h':
@@ -367,8 +367,8 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 					<< endl;
 				exit(1);
 			}
-			flags.filter_srcpt = true;
-			filters.srcpt = optarg;
+			flags.filter_src = true;
+			filters.src = optarg;
 			break;
 		// --srcpt-filter
 		case 'S':
@@ -379,8 +379,8 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 					<< endl;
 				exit(1);
 			}
-			flags.filter_src = true;
-			filters.src = optarg;
+			flags.filter_srcpt = true;
+			filters.srcpt = optarg;
 			break;
 		// --totals
 		case 't':
@@ -2253,6 +2253,10 @@ void get_input(WINDOW *win, string &input, const string &prompt,
 	}
 }
 
+/*
+ * Create a window with noticable colors (if colors are enabled)
+ * and print a warning. Means curses_warning.
+ */
 void c_warn(WINDOW *win, const string &warning, const flags_t &flags)
 {
 
@@ -2284,6 +2288,9 @@ void c_warn(WINDOW *win, const string &warning, const flags_t &flags)
 	return;
 }
 
+/*
+ * SIGWINCH signal handler.
+ */
 void winch_handler(int sig)
 {
 	sigset_t mask_set;
@@ -2297,6 +2304,9 @@ void winch_handler(int sig)
 	need_resize = true;
 }
 
+/*
+ * SIGKILL signal handler
+ */
 void kill_handler(int sig)
 {
 	end_curses();
@@ -2304,6 +2314,9 @@ void kill_handler(int sig)
 	exit(0);
 }
 
+/*
+ * The actual work of handling a resize.
+ */
 void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 {
 	if (flags.noscroll) {

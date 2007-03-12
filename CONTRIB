@@ -31,6 +31,10 @@ and you are not listed here, let me know, it's easy to forget to list
 people. Also note that if you're in the Changelog, you may not be here:
 
 
+2.1
+- Thanks to Brian Nelson for find the -sSdD bug quickly before everyone
+  had packaged 2.0!
+
 2.0
 - Thanks to Ted Faber for his extensive coding knowledge
 - Thanks to Garrick Stapples for his help figuring out ncurses pads and scrolling

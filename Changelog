@@ -1,3 +1,9 @@
+2.1
+- Released 10/05/06
+- Fixed bug where -s was doing what -S should do and -d was doing
+  what -D should do. Thanks to Brian Nelson for catching this.
+- Add comments on the 3 functions that didn't have them in 2.0
+
 2.0
 - Released 10/04/06
 - Moved man page to section 8
