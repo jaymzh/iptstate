@@ -66,7 +66,19 @@ using namespace std;
 
 #define VERSION "2.1"
 #define CONNTRACK "/proc/net/ip_conntrack"
+/*
+ * MAXCONS is set to 16k, the default number of states in iptables. Generally
+ * speaking the ncurses pad is this many lines long, but since ncurses
+ * uses a short for their dimensions, a pad can never be longer than 32767.
+ * Thus we define both of these values and NLINES as the lesser of the two.
+ */
 #define MAXCONS 16384
+#define MAXLINES 32767
+#if MAXCONS < MAXLINES
+  #define NLINES MAXCONS
+#else
+  #define NLINES MAXLINES
+#endif
 #define MAXFIELDS 20
 // This is the default format string if we don't dynamically determine it
 #define DEFAULT_FORMAT "%-21s %-21s %-7s %-12s %-9s\n"
@@ -1199,7 +1211,8 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	/*
 	 * Print the state table
 	 */
-	for (unsigned int tmpint=0; tmpint < stable.size(); tmpint++) {
+	unsigned int limit = (stable.size() < NLINES) ? stable.size() : NLINES;
+	for (unsigned int tmpint=0; tmpint < limit; tmpint++) {
 		printline(stable[tmpint],flags,format,max,mainwin);
 		if (!flags.single && flags.noscroll && 
 				(tmpint >= ssize.y-4 ||
@@ -2085,7 +2098,7 @@ static WINDOW* start_curses(flags_t &flags)
 
 	if (!flags.noscroll) {
 		getmaxyx(stdscr,y,x);
-		return newpad(MAXCONS,x);
+		return newpad(NLINES,x);
 	}
 	return stdscr;
 }
@@ -2159,7 +2172,7 @@ void switch_scroll(flags_t &flags, WINDOW *&mainwin)
 		erase();
 		// build pad
 		wmove(mainwin,0,0);
-		mainwin = newpad(MAXCONS,x);
+		mainwin = newpad(NLINES,x);
 		wmove(mainwin,0,0);
 		keypad(mainwin,1);
 		halfdelay(1);
@@ -2351,7 +2364,7 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 	 */
 	refresh();
 	getmaxyx(stdscr,ssize.y,ssize.x);
-	win = newpad(MAXCONS,ssize.x);
+	win = newpad(NLINES,ssize.x);
 	keypad(win,true);
 	wmove(win,0,0);
 
