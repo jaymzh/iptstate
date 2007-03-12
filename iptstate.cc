@@ -34,7 +34,7 @@
   option since there's no nice way to do that either.
 
   NOTE: IF YOU WANT TO PACKAGE THIS SOFTWARE FOR A 
-  LINUX DISTROBUTION, CONTACT ME!
+  LINUX DISTRIBUTION, CONTACT ME!
 
 */ 
 
@@ -47,18 +47,18 @@
 #include <ncurses.h>
 // note some versions of gcc
 // won't take sys/select.h
-// or time.h, but DO take sys/time.h
-// I don't know why, but this works
-// for everyone, so...
+// or time.h, but take sys/time.h
 #include <sys/time.h>
 #include <getopt.h>
 #include <netdb.h>
+#include <arpa/inet.h>
+#include <math.h>
 using namespace std;
 
 //
 // GLOBAL CONSTANTS
 //
-const string VERSION="1.1.0";
+const string VERSION="1.2.0";
 // Maybe one day I'll get this from kernel params
 const int MAXCONS=16384;
 const int MAXFIELDS=20;
@@ -74,15 +74,24 @@ int sort_factor = 1;
 // defined later? I hate that.
 //
 struct table {
-	string src, dst, srcpt, dstpt, proto, state, ttl;
+	string proto, state, ttl, sname, dname;
+	in_addr src, dst;
+	int srcpt, dstpt;
 };
 void split(char s, string line, string &p1, string &p2);
 void splita(char s, string line, vector<string> &result);
+int digits(int x);
+void printline(table stable, bool lookup, bool single, char *format);
+
 int src_sort(const void *a, const void *b);
 int dst_sort(const void *a, const void *b);
+int srcpt_sort(const void *a, const void *b);
+int dstpt_sort(const void *a, const void *b);
 int proto_sort(const void *a, const void *b);
 int state_sort(const void *a, const void *b);
 int ttl_sort(const void *a, const void *b);
+int sname_sort(const void *a, const void *b);
+int dname_sort(const void *a, const void *b);
 
 //
 // MAIN
@@ -95,27 +104,32 @@ string line, src, dst, srcpt, dstpt, proto, code, type, state,
 char ttlc[11], *format = "%-21s %-21s %-7s %-12s %-7s\n";
 vector<table> stable(MAXCONS);
 vector<string> fields(MAXFIELDS);
-int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1;
+int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1,
+	numtcp=0, numudp=0, numicmp=0, numother=0;
 timeval selecttimeout;
 fd_set readfd;
-bool single = false;
-
+bool single = false, totals = false, lookup = false, skiplb = false;
+struct hostent *hostinfo;
+unsigned int length;
 
 // Command Line Arguments
-while ((temp = getopt(argc,argv,"shRr:b:")) != EOF) {
+while ((temp = getopt(argc,argv,"sfhtlRr:b:")) != EOF) {
 	switch (temp) {
 		case 's':
 			single = true;
 			break;
+		case 't':
+			totals = true;
+			break;
 		case 'b':
 			if (*optarg == 'd')
-				sortby=1;
-			else if (*optarg == 'p')
 				sortby=2;
-			else if (*optarg == 's')
-				sortby=3;
-			else if (*optarg == 't')
+			else if (*optarg == 'p')
 				sortby=4;
+			else if (*optarg == 's')
+				sortby=5;
+			else if (*optarg == 't')
+				sortby=6;
 			break;
 		case 'R':
 			sort_factor = -1;
@@ -123,20 +137,29 @@ while ((temp = getopt(argc,argv,"shRr:b:")) != EOF) {
 		case 'r':
 			rate = atoi(optarg);
 			break;
+		case 'l':
+			lookup = true;
+			break;
+		case 'f':
+			skiplb = true;
+			break;
 		case 'h':
 			cout << "IPTables State Version " << VERSION << endl;
-			cout << "Usage: iptstate [-sh] [-r rate] [-b [d|p|s|t]]\n";
-			cout << "	s: single run (no ncurses)\n";
-			cout << "	h: this help message\n";
+			cout << "Usage: iptstate [-fhlRst] [-r rate] [-b [d|p|s|t]]\n";
+			cout << "	f: Filter loopback\n";
+			cout << "	h: This help message\n";
+			cout << "	l: Show hostnames instead of IP addresses\n";
 			cout << "	R: reverse sort order\n";
-			cout << "	r: refresh rate, followed by rate in seconds\n";
+			cout << "	s: Single run (no curses)\n";
+			cout << "	t: Print totals\n";
+			cout << "	r: Refresh rate, followed by rate in seconds\n";
 			cout << "           (for statetop, not applicable for -s)\n";
-			cout << "	b: sort by\n";
-			cout << "	   d: Destination IP\n";
+			cout << "	b: Sort by\n";
+			cout << "	   d: Destination IP (or Name)\n";
 			cout << "	   p: Protocol\n";
 			cout << "	   s: State\n";
 			cout << "	   t: TTL\n";
-			cout << "	   (to sort by Source IP, don't use -b)\n";
+			cout << "	   (to sort by Source IP (or Name), don't use -b)\n";
 			exit(0);
 			break;
 	}
@@ -158,10 +181,25 @@ if (!single) {
 // in which case, we'll deal with that down below
 while(1) {
 	num = 0;
-	
+	numtcp = 0;
+	numudp = 0;
+	numicmp = 0;
+	numother = 0;
+
 	// Open the file
 	ifstream input("/proc/net/ip_conntrack");
 	while (getline(input,line) && num < MAXCONS) {
+		
+		//Clear this element in the array
+		//To avoid false data
+		stable[num].sname = "";
+		stable[num].dname = "";
+		stable[num].srcpt = 0;
+		stable[num].dstpt = 0;
+		stable[num].proto = "";
+		stable[num].ttl = "";
+		stable[num].state = "";
+
 		splita(' ',line,fields);
 
 		// Read stuff into the array
@@ -181,7 +219,7 @@ while(1) {
 		minutes = minutes%60;
 		seconds = seconds%60;
 		//want strings
-		sprintf(ttlc,"%3i:%02i:%02i",hours,minutes,seconds);
+		snprintf(ttlc,11,"%3i:%02i:%02i",hours,minutes,seconds);
 		stable[num].ttl = ttlc; 
 
 		// OK, proto dependent stuff
@@ -192,19 +230,27 @@ while(1) {
 			split('=',fields[7],crap,dstpt);
 			split('=',fields[3],crap,state);
 	
-			stable[num].src = src + "," + srcpt;
-			stable[num].dst = dst + "," + dstpt;
+			inet_aton(src.c_str(), &stable[num].src);
+			inet_aton(dst.c_str(), &stable[num].dst);
+			stable[num].srcpt = atoi(srcpt.c_str());
+			stable[num].dstpt = atoi(dstpt.c_str());
 			stable[num].state = state;
+
+			numtcp++;
 			
 		} else if (stable[num].proto == "udp") {
 			split('=',fields[3],crap,src);
 			split('=',fields[4],crap,dst);
 			split('=',fields[5],crap,srcpt);
 			split('=',fields[6],crap,dstpt);
-	
-			stable[num].src = src + "," + srcpt;
-			stable[num].dst = dst + "," + dstpt;
+
+			inet_aton(src.c_str(), &stable[num].src);
+			inet_aton(dst.c_str(), &stable[num].dst);
+			stable[num].srcpt = atoi(srcpt.c_str());
+			stable[num].dstpt = atoi(dstpt.c_str());
 			stable[num].state = "";
+
+			numudp++;
 
 		} else if (stable[num].proto == "icmp") {
 			split('=',fields[3],crap,src);
@@ -212,9 +258,11 @@ while(1) {
 			split('=',fields[5],crap,type);
 			split('=',fields[6],crap,code);
 
+			inet_aton(src.c_str(), &stable[num].src);
+			inet_aton(dst.c_str(), &stable[num].dst);
 			stable[num].state = type + "/" + code;
-			stable[num].src = src;
-			stable[num].dst = dst;
+
+			numicmp++;
 
 		} else {
 			// If we're not TCP, or UDP
@@ -222,8 +270,54 @@ while(1) {
 			split('=',fields[3],crap,src);
 			split('=',fields[4],crap,dst);
 
-			stable[num].src = src;
-			stable[num].dst = dst;
+			inet_aton(src.c_str(), &stable[num].src);
+			inet_aton(dst.c_str(), &stable[num].dst);
+
+			numother++;
+
+		}
+
+		if (skiplb && (!strcmp("127.0.0.1",src.c_str()))) {
+			continue;
+		}
+
+		// Resolve Names if we need to
+		if (lookup) {
+			if ((hostinfo = gethostbyaddr(&stable[num].src,sizeof(stable[num].src), AF_INET)) != NULL) {
+				stable[num].sname = hostinfo->h_name;
+				if (stable[num].proto == "tcp" || stable[num].proto == "udp") {
+					// We truncate the Source from the right
+					// Since they are all likely from the same
+					// domain anyway
+					// Note Length is 21 - 1(for comma) - port
+					length = 20 - digits(stable[num].srcpt);
+					if (stable[num].sname.size() > length)
+						stable[num].sname = stable[num].sname.substr(0,length);
+				} else {
+					length = 21;
+					if (stable[num].sname.size() > length)
+						stable[num].sname = stable[num].sname.substr(0,length);
+				}
+			} else {
+				//this else is here for troubleshooting
+				//herror("gethostbyaddr");
+			}
+			if ((hostinfo = gethostbyaddr(&stable[num].dst,sizeof(stable[num].dst),AF_INET)) != NULL) {
+				stable[num].dname = hostinfo->h_name;
+				if (stable[num].proto == "tcp" || stable[num].proto == "udp") {
+					// We truncate the Destination from the left
+					// Since "images.server4" doens't help -- we want domains
+					length = 20 - digits(stable[num].dstpt);
+					if (stable[num].dname.size() > length)
+						stable[num].dname = stable[num].dname.substr(stable[num].dname.size()-length,length);
+				} else {
+					length = 21;
+					if (stable[num].dname.size() > length)
+						stable[num].dname = stable[num].dname.substr(stable[num].dname.size()-length,length);
+				}
+			} else {
+				//herror("gethostbyaddr");
+			}
 		}
 
 		// How many lines have we printed?
@@ -232,31 +326,45 @@ while(1) {
 	} // end while (getline)
 	input.close(); // close the ip_conntrack
 
-	//sort the fucker
-	if (sortby == 0)
-		qsort(&(stable[0]),num,sizeof(table),src_sort);
-	else if (sortby == 1)
-		qsort(&(stable[0]),num,sizeof(table),dst_sort);
-	else if (sortby == 2)
+	//sort the fucker AND define 'sorting' (recently combined)
+	if (sortby == 0) {
+		if (lookup) {
+			qsort(&(stable[0]),num,sizeof(table),sname_sort);
+			sorting = "SrcName";
+		} else {
+			qsort(&(stable[0]),num,sizeof(table),src_sort);
+			sorting = "SrcIP";
+		}
+	} else if (sortby == 1) {
+		qsort(&(stable[0]),num,sizeof(table),srcpt_sort);
+		sorting = "SrcPort";
+	} else if (sortby == 2) {
+		if (lookup) {
+			qsort(&(stable[0]),num,sizeof(table),dname_sort);
+			sorting = "DstName";
+		} else {
+			qsort(&(stable[0]),num,sizeof(table),dst_sort);
+			sorting = "DstIP";
+		}
+	} else if (sortby == 3) {
+		qsort(&(stable[0]),num,sizeof(table),dstpt_sort);
+		sorting = "DstPort";
+	} else if (sortby == 4) {
 		qsort(&(stable[0]),num,sizeof(table),proto_sort);
-	else if (sortby == 3)
-		qsort(&(stable[0]),num,sizeof(table),state_sort);
-	else if (sortby == 4)
-		qsort(&(stable[0]),num,sizeof(table),ttl_sort);
-
-	//define 'sorting'
-	if (sortby == 0)
-		sorting ="SrcIP";
-	else if (sortby == 1)
-		sorting = "DstIP";
-	else if (sortby == 2)
 		sorting = "Proto";
-	else if (sortby == 3)
+	} else if (sortby == 5) {
+		qsort(&(stable[0]),num,sizeof(table),state_sort);
 		sorting = "State";
-	else if (sortby == 4)
+	} else if (sortby == 6) {
+		qsort(&(stable[0]),num,sizeof(table),ttl_sort);
 		sorting = "TTL";
-	else
-		sorting = "??unkown??";
+	} else {
+		//we should never get here
+		sorting = "??unknown??";
+	}
+
+	if (sort_factor == -1)
+		sorting = sorting + " reverse";
 	
 	// if in single line mode, do everything and exit
 	if (single) {
@@ -266,9 +374,11 @@ while(1) {
 		// although I SHOULD use cout for formatted printing
 		// this makes it easy to change printw and printf statements
 		// at the same time
+		if (totals)
+			printf("Total States: %i -- TCP: %i UDP: %i ICMP: %i OTHER: %i\n", num, numtcp, numudp, numicmp, numother);
 		printf(format, "Source IP", "Destination IP", "Proto", "State", "TTL");
 		for (temp=0; temp < num; temp++) {
-			printf(format, stable[temp].src.c_str(), stable[temp].dst.c_str(), stable[temp].proto.c_str(), stable[temp].state.c_str(), stable[temp].ttl.c_str());
+			printline(stable[temp],lookup,single,format);
 		}
 		exit(0);
 	}
@@ -280,10 +390,8 @@ while(1) {
 	getmaxyx(stdscr, maxy, maxx);
 	move (0,0);
 
-	// this is ugly, and I'll fix it later
-	for (temp=0;temp<(maxx/2)-10;temp++) {
-		printw(" ");
-	}
+	// Why y comes BEFORE x I have NO clue
+	move (0,maxx/2-10);
 	attron(A_BOLD);
 	printw("IPTables - State Top\n");
 
@@ -294,21 +402,21 @@ while(1) {
 	attron(A_BOLD);
 	printw("Sort: ");
 	attroff(A_BOLD);
-	if (sort_factor == -1)
-		sorting = sorting + " reverse";
 	printw("%-16s", sorting.c_str());
 	attron(A_BOLD);
 	printw("s");
 	attroff(A_BOLD);
 	printw("%-20s\n", " to change sorting");
+	if (totals)
+		printw("Total States: %i -- TCP: %i UDP: %i ICMP: %i OTHER: %i\n",num,numtcp,numudp,numicmp,numother);
 	attron(A_BOLD);
 	printw(format, "Source IP", "Destination IP", "Proto", "State", "TTL");
 	attroff(A_BOLD);
 
 	//print the state table
 	for (temp=0; temp < num; temp++) {
-		printw(format, stable[temp].src.c_str(), stable[temp].dst.c_str(), stable[temp].proto.c_str(), stable[temp].state.c_str(), stable[temp].ttl.c_str());
-		if (temp >= maxy-4)
+		printline(stable[temp],lookup,single,format);
+		if (temp >= maxy-4 || (totals && temp >= maxy-5))
 			break;
 	}
 	
@@ -327,12 +435,18 @@ while(1) {
 		if (temp == 'q') {
 			break;
 		} else if (temp == 's') {
-			if (sortby <4)
+			if (sortby <6)
 				sortby++;
 			else
 				sortby=0;
 		} else if (temp == 'r') {
 			sort_factor = -sort_factor;
+		} else if (temp == 'f') {
+			skiplb = !skiplb;
+		} else if (temp == 'l') {
+			lookup = !lookup;
+		} else if (temp == 't') {
+			totals = !totals;
 		}
 	}
 
@@ -381,20 +495,31 @@ void splita(char s, string line, vector<string> &result) {
 	result[i] = temp;
 }
 
+// This determines the length of an integer (i.e. number of digits)
+int digits(int x) {
+	return (int) floor(log10(x))+1;
+}
+
 // what follows are the sort
 // functions that qsort requires
 int src_sort(const void *a, const void *b) {
-	if(((table *)a)->src == ((table *)b)->src) {
+	return sort_factor * memcmp(&((table *)a)->src, &((table *)b)->src, sizeof(uint32_t));
+}
+int dst_sort(const void *a, const void *b) {
+	return sort_factor * memcmp(&((table *)a)->dst, &((table *)b)->dst, sizeof(uint32_t));
+}
+int srcpt_sort(const void *a, const void *b) {
+	if(((table *)a)->srcpt == ((table *)b)->srcpt) {
 		return 0;
-	} else if (((table *)a)->src > ((table *)b)->src) {
+	} else if (((table *)a)->srcpt > ((table *)b)->srcpt) {
 		return sort_factor;
 	}
 	return -sort_factor;
 }
-int dst_sort(const void *a, const void *b) {
-	if(((table *)a)->dst == ((table *)b)->dst) {
+int dstpt_sort(const void *a, const void *b) {
+	if(((table *)a)->dstpt == ((table *)b)->dstpt) {
 		return 0;
-	} else if (((table *)a)->dst > ((table *)b)->dst) {
+	} else if (((table *)a)->dstpt > ((table *)b)->dstpt) {
 		return sort_factor;
 	}
 	return -sort_factor;
@@ -423,5 +548,56 @@ int ttl_sort(const void *a, const void *b) {
 	}
 	return -sort_factor;
 }
+int sname_sort(const void *a, const void *b) {
+	if(((table *)a)->sname == ((table *)b)->sname) {
+		return 0;
+	} else if (((table *)a)->sname > ((table *)b)->sname) {
+		return sort_factor;
+	}
+	return -sort_factor;
+}
+int dname_sort(const void *a, const void *b) {
+	if(((table *)a)->dname == ((table *)b)->dname) {
+		return 0;
+	} else if (((table *)a)->dname > ((table *)b)->dname) {
+		return sort_factor;
+	}
+	return -sort_factor;
+}
 
 
+void printline(table stable, bool lookup, bool single, char *format) {
+	//rather be safe than sorry. Is there a limit on URL sizes?
+	char buffer[100];
+	string src,dst;
+	
+	if (stable.proto == "tcp" || stable.proto == "udp") {
+		if (lookup && (stable.sname != "")) {
+			snprintf(buffer,100,"%s%s%i",stable.sname.c_str(),",",stable.srcpt);
+		} else {
+			snprintf(buffer,100,"%s%s%i",inet_ntoa(stable.src),",",stable.srcpt);
+		}
+		src = buffer;
+		if (lookup && (stable.dname != "")) {
+			snprintf(buffer,100,"%s%s%i",stable.dname.c_str(),",",stable.dstpt);
+		} else {
+			snprintf(buffer,100,"%s%s%i",inet_ntoa(stable.dst),",",stable.dstpt);
+		}
+		dst = buffer;
+	} else {
+		if (lookup && (stable.sname != "")) {
+			src = stable.sname;
+		} else {
+			src = inet_ntoa(stable.src);
+		}
+		if (lookup && (stable.dname != "")) {
+			dst = stable.dname;
+		} else {
+			dst = inet_ntoa(stable.dst);
+		}
+	}
+	if (single)
+		printf(format, src.c_str(), dst.c_str(), stable.proto.c_str(), stable.state.c_str(), stable.ttl.c_str());
+	else
+		printw(format, src.c_str(), dst.c_str(), stable.proto.c_str(), stable.state.c_str(), stable.ttl.c_str());	
+}

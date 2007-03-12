@@ -1,5 +1,12 @@
 IPTState Bugs
 
+KNOWN BUGS
+  The only known bug at this point is a memory leak. If you have a lot of
+traffic I don't recommend leaving IPTState running overnight on your
+firewall because it may run out of memory. Since I don't use any dynamic
+data structures I have not been able to find the memory leak, but feel free
+to try.
+
 ABOUT BUGS
   If you find a bug in IPTState you should notify ME! You can contact me at
 webmaster@ipom.com. Don't send bug reports to public forums until AFTER
@@ -9,7 +16,7 @@ ABOUT MY RESPONSE
   If your bug is serious - i.e. compilation errors, or major a functionality
 is broken, I'll usually give you pretty immediate attention. If it's a
 very minor bug, or a feature request, I will acknowledge your email, but I
-may not fix/implement immediately.
+may not fix/implement it immediately.
 
 ABOUT PATCHES
   I do accept patches - I just don't usually use them. So you ask, 'so why
@@ -17,7 +24,8 @@ should I write one?' Patches are great because they often give me the
 core of the answer right away. However, I'm particularly anal about my
 code and so I like everything to be in my style. In fact, of all the
 patches I've received, I've applied 0. I've used several as reference
-though.
+though. Feel free to submit a bug report without a patch if you want, that's
+fine too.
 
   PATCHES SHOULD BE ACCOMPANIED BY EXPLINATIONS AND/OR BUG REPORTS! Let me
 know what you were trying to fix/add and how you did it. This will save

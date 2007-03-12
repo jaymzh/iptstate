@@ -27,7 +27,7 @@ NOTE: If you are planning on packaging and/or submitting my
 software for/to a Linux Distribution, EMAIL ME FIRST!!!
 
 
-IPTState Version 1.1.0
+IPTState Version 1.2.0
 
 
 1. WHAT IS IP TABLES STATE?
@@ -93,11 +93,11 @@ IPTState Version 1.1.0
 	iptstate installs world read/executable), this is a package
 	for a sysadmin. Installing should be as simple as 'make 
 	install.' If this fails, feel free to do:
-	 # cp iptstate /usr/local/sbin/iptstate
-	 # chmod 755 /usr/local/sbin/iptstate
-	 # chown root:bin /usr/local/sbin/iptstate
-	 # cp man/man1/iptstate.1 /usr/local/man/man1/iptstate.1
-	 # chmod 444 /usr/local/man/man1/iptstate.1
+	 # cp iptstate /usr/sbin/iptstate
+	 # chmod 755 /usr/sbin/iptstate
+	 # chown root:bin /usr/sbin/iptstate
+	 # cp man/man1/iptstate.1 /usr/share/man/man1/iptstate.1
+	 # chmod 444 /usr/share/man/man1/iptstate.1
 	And that should do it. If 'make install' fails feel free
 	to drop me an email provided you put "IPTSTATE:" in the 
 	subject. Please see the BUGS file on how to send proper
@@ -125,9 +125,9 @@ IPTState Version 1.1.0
   your state table at the moment you requested it. This is where
   -b comes in handy. Again, the default sort is by Source IP.
 
-  Check the man page and the -h option - This is not meant to be
-  a comprehensive guide, and as more features are added, they may
-  not be added here. But that should give you the basics!
+  NOTE WELL: This is not meant to be a comprehensive guide. There
+  are many other features - check the man page and the -h option
+  for more information. But this should give you the basics.
 
 
 5. DESIRED FEATURES

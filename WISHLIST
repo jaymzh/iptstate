@@ -1,15 +1,14 @@
 IPTSTATE WISHLIST
-Current for version 1.1.0.
+Current for version 1.2.0.
 This is the wishlist. READ IT BEFORE EMAILING ME.
 
 Features I really want to add
-- Proper IP sorting
-- Optional DNS lookups
-- Statistics
+- Variable width of src and dst columns, atleast for interactive
+  mode.
 
 Features I may add if I have a lot of time or find a use for them
 - Secondary sorting
-- Filtering if output
+- Filtering output
 
 Features that would be cool but can't/won't happen
 - I would like to show "number of packets" sent by a state, but

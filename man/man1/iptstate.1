@@ -1,17 +1,17 @@
 .\" Process this file with
 .\" groff -man -Tascii iptstate.1
 .\"
-.TH IPTSTATE 1 "MARCH 2002" "" ""
+.TH IPTSTATE 1 "APRIL 2002" "" ""
 .\"
 .\" Man page written by Phil Dibowitz <webmaster@ipom.com>
 .\"
-.\" IPTState is copyright by Phil Dibowitz. Please see the README.
+.\" IPTState is copyright by Phil Dibowitz. Please see the README and LICENSE.
 .\"
 .SH NAME 
 iptstate \- A top-like display of IP Tables state table entries
 .SH SYNOPSIS
 .B iptstate 
-.RB [ \-shR ]
+.RB [ \-fhlRst ]
 .RB [ \-r 
 .I seconds
 ]
@@ -22,7 +22,7 @@ iptstate \- A top-like display of IP Tables state table entries
 .B iptstate
 displays information held in the IP Tables state table in real-time in a top-like format.
 Output can be sorted by any field, or any field reversed. Users can choose to have the output only print once and exit. Refresh rate is also customizable.
-.SH OPTIONS
+.SH "COMMAND\-LINE OPTIONS"
 .TP
 .B -b
 This option tells IPTState how to sort the output. The options are:
@@ -39,18 +39,51 @@ State
 .B "    t"
 TTL
 .TP
+.B -f
+Filter anything on loopback
+.TP
 .B -h
 Display help message.
 .TP
+.B -l
+Resolve all IP address to domain names. This truncates from the Source address from the right (you know your own domain) and destination addresses from the left (domains are most helpful here). Warning: this can take a long time to startup due to all the resolving.
+.TP
 .BI "-r " "seconds"
 This tells IPTState what the refresh you want (ignored when used with -s).
-.TP
 .B -R
 Sort in reverse.
 .TP
 .B -s
 Single-run mode. This will print the state table formatted on the screen once without using curses.
-.SH BUGS AND BUG REPORTS
+.TP
+.B -t
+Show totals (total states, total TCP states, etc.)
+.SH "INTERACTIVE OPTIONS"
+The following my be used while IPTState is running to change its behavior (unless you use -s).
+.TP
+.B f
+Toggle filtering of loopback
+.TP
+.B l
+Toggle DNS lookups on IP addresses
+.TP
+.B q
+Quit
+.TP
+.B r
+Toggle reverse sorting
+.TP
+.B s
+Change sorting to the next field
+.TP
+.B t
+Toggle display of totals
+.TP
+.B space
+Immediately update the display. Use this if you resize the window.
+.SH BUGS
+The only known bug at this point is a memory leak. If you have a lot of traffic I don't recommend leaving IPTState running overnight on your firewall because it may run out of memory. Since I don't use any dynamic data structures I have not been able to find the memory leak, but feel free to try.
+.SH BUG REPORTS
 All bugs should be reported to Phil Dibowitz <webmaster@ipom.com>,
 .B NOT
 your local distribution bug list. Please see
