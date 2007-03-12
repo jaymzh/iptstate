@@ -3,12 +3,13 @@
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 1.0
+# Makefile for IPTState verion 1.0.1
 #
 
 ### USERS CAN CHANGE STUFF HERE
 
-SBIN=/usr/sbin
+PREFIX=/usr
+SBIN=$(PREFIX)/sbin
 INSTALL=/usr/bin/install
 
 ### YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW HERE
@@ -29,7 +30,7 @@ all:
 	@echo "+-----------------------------------------------------------+"
 	@echo ""
 
-	$(CXX) $(CXXFLAGS) $(LIBS) $(OBJS) -o iptstate
+	$(CXX) $(CXXFLAGS) $(OBJS) -o iptstate $(LIBS)
 
 	@echo ""
 	@echo "All done. Install and you should be set to go!"
@@ -37,7 +38,8 @@ all:
 
 
 install:
-	$(INSTALL) --mode=755 --owner=root --group=bin iptstate $(SBIN)/iptstate
+	$(INSTALL) -d $(SBIN)
+	$(INSTALL) --mode=755 iptstate $(SBIN)/iptstate
 
 
 clean:

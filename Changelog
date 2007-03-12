@@ -1,0 +1,19 @@
+1.0.1
+- Released 02/27/02
+- Added spec file so people can build RPMs if the like
+- Fix 'timeval' compile error for certain platforms.
+	Bizzare bug, I'm guessing in GCC. On some platforms
+	it wants to use sys/time.h. It will fail if you use 
+	sys/select.h or time.h. Go figure.
+- Take out src port and dst port for non tcp,udp cases
+- Give 'rate' an initial value
+- Fixed Big Endian Problem with command line arguments
+- Fixed Makefile (put LIBS at end)
+- Change "proto" field to look up by protocol number field of
+	ip_conntrack instead of take it from the name field.
+        This should now support pretty much any protocol. I 
+	was unaware that ip_conntrack printed 'unknown' for 
+	protos other than tcp, udp, and icmp.
+
+1.0
+- Original version released 02/23/02

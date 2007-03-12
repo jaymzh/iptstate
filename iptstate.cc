@@ -42,14 +42,18 @@
 #include <stdlib.h>
 #include <fstream.h>
 #include <ncurses.h>
-#include <sys/select.h>
+// note some versions of gcc
+// won't take sys/select.h
+// or time.h, but take sys/time.h
+#include <sys/time.h>
 #include <getopt.h>
+#include <netdb.h>
 using namespace std;
 
 //
 // GLOBAL CONSTANTS
 //
-const string VERSION="1.0";
+const string VERSION="1.0.1";
 
 //
 // FUNCTIONS AND STRUCTS
@@ -80,17 +84,18 @@ int main(int argc, char *argv[]) {
 // Variables
 string line, src, dst, srcpt, dstpt, proto, code, type, state, 
 	ttl, mins, secs, hrs, sorting, crap;
-char min[5], sec[5], hr[5], c;
+char min[5], sec[5], hr[5];
 vector<table> stable(50);
-int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate;
+int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1;
 vector<string> fields(50);
+timeval selecttimeout;
 fd_set readfd;
-bool are_hours = false, single = false, gotsort=false, reverse=false;;
+bool are_hours = false, single = false, gotsort=false, reverse=false;
 
 
 // Command Line Arguments
-while ((c = getopt(argc,argv,"shr:b:")) != EOF) {
-	switch (c) {
+while ((temp = getopt(argc,argv,"shr:b:")) != EOF) {
+	switch (temp) {
 		case 's':
 			single = true;
 			break;
@@ -156,8 +161,11 @@ while(1) {
 		// that's always in the same place
 		// regardless of protocol
 
-		// proto
-		stable[num].proto = fields[0];
+		// Get the protocol number from field[1]
+		// We don't want to get it from field[0] because
+		// ip_conntrack doesn't seem to support this field
+		// for anything other than tcp, udp, and icmp
+		stable[num].proto = getprotobynumber(atoi(fields[1].c_str()))->p_name;
 		
 		// ttl
 		seconds = atoi(fields[2].c_str());
@@ -215,15 +223,13 @@ while(1) {
 			stable[num].dst = dst;
 
 		} else {
+			// If we're not TCP, or UDP
+			// There's no ports involved
 			split('=',fields[3],crap,src);
 			split('=',fields[4],crap,dst);
-			split('=',fields[5],crap,srcpt);
-			split('=',fields[6],crap,dstpt);
 
-			stable[num].src = src + "," + srcpt;
-			stable[num].dst = dst + "," + dstpt;
-			stable[num].proto = stable[num].proto + " **";
-		
+			stable[num].src = src;
+			stable[num].dst = dst;
 		}
 
 		// How many lines have we printed?
@@ -331,22 +337,21 @@ while(1) {
 
 	//check for key presses for one second
 	//or whatever the user said
-	timeval selecttimeout;
 	selecttimeout.tv_sec = rate;
 	selecttimeout.tv_usec = 0;
 	FD_ZERO(&readfd);
 	FD_SET(0, &readfd);
 	select(1,&readfd, NULL, NULL, &selecttimeout);
 	if (FD_ISSET(0, &readfd)) {
-		c = wgetch(stdscr);
-		if (c == 'q') {
+		temp = wgetch(stdscr);
+		if (temp == 'q') {
 			break;
-		} else if (c == 's') {
+		} else if (temp == 's') {
 			if (sortby <4)
 				sortby++;
 			else
 				sortby=0;
-		} else if (c == 'r') {
+		} else if (temp == 'r') {
 			if (reverse == true)
 				reverse = false;
 			else

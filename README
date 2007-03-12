@@ -23,7 +23,7 @@
 
   -----------------------------------
 
-IPTState Version 1.0
+IPTState Version 1.0.1
 
 
 1. WHAT IS IP TABLES STATE?
@@ -49,7 +49,8 @@ IPTState Version 1.0
 
 2. PRE-INSTALATION
 
-	Make sure you have ncurses installed.
+	Make sure you have some version of curses installed (for most
+		users this is probably ncurses).
 
 
 3. INSTALLATION
@@ -123,8 +124,14 @@ IPTState Version 1.0
 
 5. DESIRED FEATURES
 
-  I will eventually change the datatypes for the IP addresses to
-  be those provided by arpa.h. In the mean time this works fine.
+  I will probably at some point change the datatype of the IP
+  addresses to in_addr and use the various tools in inet.h and 
+  in.h. This would help with sorting of the IP address, but is 
+  not a priority at this point.
+
+  Similarly to above I'll probably improve sorting of the TTL
+  section at some point. Again this isn't a priority at the
+  moment.
 
   I would like to show "number of packets" sent by a state, but
   /proc/net/ip_conntrack doesn't seem to store that information.
