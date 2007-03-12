@@ -1,3 +1,12 @@
+1.2.1
+- Released 07/01/02
+- Fixes for GCC3
+  - cast 'x' in 'log' so GCC knows which log I mean
+  - add -Wno-deprecated to Makefile
+- Fix small bug in manpage that made -R not show up
+- Fix crash if protocol is not found in /etc/protocols
+- Update 'uninstall' in Makefile
+
 1.2.0
 - Released 04/20/02
 - Various doc updates

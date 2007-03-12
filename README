@@ -27,7 +27,7 @@ NOTE: If you are planning on packaging and/or submitting my
 software for/to a Linux Distribution, EMAIL ME FIRST!!!
 
 
-IPTState Version 1.2.0
+IPTState Version 1.2.1
 
 
 1. WHAT IS IP TABLES STATE?
@@ -53,7 +53,9 @@ IPTState Version 1.2.0
 2. PRE-INSTALATION
 
   Make sure you have some version of curses installed (for most users
-  this is probably ncurses).
+  this is probably ncurses). Note that if you are using vendor packages
+  you will most likely need the packaged with '-dev' on the end of of
+  it (i.e. ncurses-dev).
 
 
 3. INSTALLATION
@@ -85,6 +87,12 @@ IPTState Version 1.2.0
 	BUT MAKE SURE you put "IPTSTATE:" in the subject. In the
 	email include: Distribution, kernel version, make version,
 	gcc version, and the error messages.
+
+	If you get errors like:
+		iptstate.cc:286: passing `in_addr *' as argument
+		1 of `gethostbyaddr(const char *, size_t, int)'
+	then you need to upgrade your glibc. This is an important
+	thing to keep up-to-date anyway.
 
 	  Installing
 	IPTState installs in /usr/sbin. This is because it should
@@ -155,5 +163,5 @@ IPTState Version 1.2.0
 
 
 Phil Dibowitz
-webmaster@ipom.com
+phil@ipom.com
 

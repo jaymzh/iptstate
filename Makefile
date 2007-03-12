@@ -3,7 +3,7 @@
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 1.2.0
+# Makefile for IPTState verion 1.2.1
 #
 
 ### USERS CAN CHANGE STUFF HERE
@@ -16,7 +16,7 @@ MAN=$(PREFIX)/share/man
 ### YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW HERE
 
 CXX = g++
-CXXFLAGS = -g -Wall
+CXXFLAGS = -g -Wall -Wno-deprecated
 OBJS = iptstate.cc
 LIBS= -lncurses
 
@@ -53,4 +53,4 @@ clean:
 
 uninstall:
 	/bin/rm -rf $(SBIN)/iptstate
-
+	/bin/rm -rf $(MAN)/man1/iptstate.1

@@ -58,7 +58,7 @@ using namespace std;
 //
 // GLOBAL CONSTANTS
 //
-const string VERSION="1.2.0";
+const string VERSION="1.2.1";
 // Maybe one day I'll get this from kernel params
 const int MAXCONS=16384;
 const int MAXFIELDS=20;
@@ -109,8 +109,10 @@ int seconds=0, minutes=0, hours=0, num, maxx, maxy, temp, sortby=0, rate=1,
 timeval selecttimeout;
 fd_set readfd;
 bool single = false, totals = false, lookup = false, skiplb = false;
-struct hostent *hostinfo;
+struct hostent* hostinfo;
+struct protoent* pe;
 unsigned int length;
+
 
 // Command Line Arguments
 while ((temp = getopt(argc,argv,"sfhtlRr:b:")) != EOF) {
@@ -210,8 +212,12 @@ while(1) {
 		// We don't want to get it from field[0] because
 		// ip_conntrack doesn't seem to support this field
 		// for anything other than tcp, udp, and icmp
-		stable[num].proto = getprotobynumber(atoi(fields[1].c_str()))->p_name;
-		
+		if ((pe = getprotobynumber(atoi(fields[1].c_str()))) == NULL) {
+			stable[num].proto = "unknown";
+		} else {
+			stable[num].proto = pe->p_name;
+		}
+				
 		// ttl
 		seconds = atoi(fields[2].c_str());
 		minutes = seconds/60;
@@ -497,7 +503,7 @@ void splita(char s, string line, vector<string> &result) {
 
 // This determines the length of an integer (i.e. number of digits)
 int digits(int x) {
-	return (int) floor(log10(x))+1;
+	return (int) floor(log10((double)x))+1;
 }
 
 // what follows are the sort
