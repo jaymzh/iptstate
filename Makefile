@@ -19,14 +19,15 @@ MAN?=$(PREFIX)/share/man
 CXX?= g++
 CXXFLAGS?= -g -Wall -O2
 CXXFILES?= iptstate.cc
-LIBS?= -lncurses
+LIBS?= -lncurses -lnetfilter_conntrack
+OLDLIBS?= -lncurses
 
 ### YOU SHOULDN'T NEED TO CHANGE ANYTHING BELOW THIS
 
 all:	iptstate
 
 
-iptstate:	iptstate.cc
+welcome:
 	@\
 	echo "+------------------------------------------------------------+" ;\
 	echo "| Welcome to IP Tables State by Phil Dibowitz                |" ;\
@@ -42,6 +43,8 @@ iptstate:	iptstate.cc
 	echo "+------------------------------------------------------------+" ;\
 	echo ""
 
+iptstate:	welcome iptstate.cc
+
 	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS)
 	@touch iptstate
 
@@ -50,6 +53,20 @@ iptstate:	iptstate.cc
 	echo "All done. Do 'make install' as root and you should be set to go!" ;\
 	echo ""
 
+iptstate_proc:	welcome iptstate.cc
+	@\
+	echo "WARNING: You are compiling iptstate to use the /proc interface" ;\
+	echo "	to netfilter. This is deprecated and will be removed from" ;\
+	echo "	later versions of the code!" ;\
+	echo ""
+
+	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(OLDLIBS) -DIPTSTATE_USE_PROC
+	@touch iptstate
+
+	@\
+	echo "" ;\
+	echo "All done. Do 'make install' as root and you should be set to go!" ;\
+	echo ""
 
 strip:	iptstate
 	$(STRIP) iptstate

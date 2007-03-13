@@ -49,23 +49,24 @@
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
-/*
- * note some versions of gcc/libc requires:
- *    #include <sys/select.h>
- *    #include <time.h>
- *
- * instead of:
- *    #incldue <sys/time.h>
- */
 #include <sys/time.h>
 #include <getopt.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <math.h>
+#ifndef IPTSTATE_USE_PROC
+extern "C" {
+	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+	#include <libnetfilter_conntrack/libnetfilter_conntrack_ipv4.h>
+	#include <libnetfilter_conntrack/libnetfilter_conntrack_ipv6.h>
+};
+#else
+	#define CONNTRACK "/proc/net/ip_conntrack"
+#endif
 using namespace std;
 
-#define VERSION "2.1"
-#define CONNTRACK "/proc/net/ip_conntrack"
+#define VERSION "2.1+CVS"
+/* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
  * speaking the ncurses pad is this many lines long, but since ncurses
@@ -105,6 +106,8 @@ using namespace std;
 // This should ALWAYS the same as the above.
 #define SORT_MAX 6
 
+#define NFCT_DIR NFCT_DIR_ORIGINAL
+
 /*
  * GLOBAL CONSTANTS
  */
@@ -114,6 +117,20 @@ using namespace std;
  */
 int sort_factor = 1;
 bool need_resize = false;
+
+/* shameless stolen from libnetfilter_conntrack_tcp.c */
+static const char *states[] = {
+        "NONE",
+        "SYN_SENT",
+        "SYN_RECV",
+        "ESTABLISHED",
+        "FIN_WAIT",
+        "CLOSE_WAIT",
+        "LAST_ACK",
+        "TIME_WAIT",
+        "CLOSE",
+        "LISTEN"
+};
 
 /*
  * STRUCTS
@@ -747,9 +764,234 @@ return(0);
  * BEGIN FUNCTIONS
  */
 
+#ifndef IPTSTATE_USE_PROC
+int conntrack_hook(void *arg, unsigned int flags, int type,
+			void *ct_list)
+{
+	static_cast<vector<struct nfct_conntrack> *>(ct_list)->push_back(
+		*((struct nfct_conntrack*)arg));
+	return 1;
+}
+
 /*
  * This is the core of this program - build a table of states
  */
+void build_table(const flags_t &flags, const filters_t &filters,
+		vector<table_t> &stable, counters_t &counts,
+		max_t &max)
+{
+
+	/*
+	 * Variables
+	 */
+
+	// Temporary strings for holding/formatting/etc.
+	string line, mins, secs, hrs, tmpstring;
+	unsigned int size;
+	/*
+	 * These are ascii representations of various fields we parse in
+	 * before they get converted to in_addr/int/etc.
+	 */
+	string src, dst, srcpt, dstpt, proto, code, type, state, ttl;
+	/*
+	 * snprintf() require a real char*, unfortunately - this is just
+	 * for formatting the TTL.
+	 */
+	char ttlc[11];
+	int seconds=0, minutes=0, hours=0, res=0;
+	// this is the array we parse the line into
+	vector<string> fields(MAXFIELDS);
+	// this is a temporary array for the nfct structs
+	vector<struct nfct_conntrack> cts;
+	struct protoent* pe = NULL;
+	table_t entry;
+	static struct nfct_handle *cth;
+
+	/*
+	 * Initialization
+	 */
+	stable.clear();
+	counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped
+		= 0;
+	/*
+	 * For NO lookup:
+	 * src/dst IP can be no bigger than 21 chars:
+	 *    IP (max of 15) + colon (1) + port (max of 5) = 21
+	 *
+	 * For lookup:
+	 * if it's a name, we start with the width of the header, and we can
+	 * grow from there as needed.
+	 */
+	if (flags.lookup) {
+		max.src = 6;
+		max.dst = 11;
+	} else {
+		max.src = max.dst = 21;
+	}
+	/*
+	 * The proto header is 5, so we can't drop below 6.
+	 */
+	max.proto = 5;
+	/*
+	 * "ESTABLISHED" is generally the longest state, we almost always have
+	 * several, so we'll start with this. It also looks really bad if state
+	 * is changing size a lot, so we start with a common minumum.
+	 */
+	max.state = 11;
+	// TTL we statically make 7: xxx:xx:xx
+	max.ttl = 9;
+
+	cth = nfct_open(CONNTRACK, 0);
+	if (!cth) {
+		printf("ERROR: couldn't establish conntrack connection\n");
+		exit(1);
+	}
+	nfct_register_callback(cth, conntrack_hook, (void *)&cts);
+	res = nfct_dump_conntrack_table(cth, AF_INET);
+	if (res < 0) {
+		printf("ERROR: Couldn't retreive conntrack table\n");
+		exit(1);
+	}
+
+	vector<struct nfct_conntrack>::iterator iter;
+	for (iter = cts.begin(); iter != cts.end(); iter++) {
+
+		/*
+		 * Clear the entry
+		 */
+		entry.sname = "";
+		entry.dname = "";
+		entry.srcpt = 0;
+		entry.dstpt = 0;
+		entry.proto = "";
+		entry.ttl = "";
+		entry.state = "";
+
+		/*
+		 * First, we read stuff into the array that's always the
+		 * same regardless of protocol
+		 */
+
+		pe = getprotobynumber(iter->tuple[NFCT_DIR].protonum);
+		if (pe == NULL) {
+			entry.proto = "unknown";
+		} else {
+			entry.proto = pe->p_name;
+		}
+				
+		// ttl
+		seconds = iter->timeout;
+		minutes = seconds/60;
+		hours = minutes/60;
+		minutes = minutes%60;
+		seconds = seconds%60;
+		// Format it with snprintf and store it in the table
+		snprintf(ttlc,11,"%3i:%02i:%02i",hours,minutes,seconds);
+		entry.ttl = ttlc; 
+
+		entry.src.s_addr = iter->tuple[NFCT_DIR].src.v4;
+		entry.dst.s_addr = iter->tuple[NFCT_DIR].dst.v4;
+
+		// OK, proto dependent stuff
+		if (entry.proto == "tcp" || entry.proto == "udp") {
+			entry.srcpt =
+				htons(iter->tuple[NFCT_DIR].l4src.tcp.port);
+			entry.dstpt =
+				htons(iter->tuple[NFCT_DIR].l4dst.tcp.port);
+		}
+
+		if (entry.proto == "tcp") {
+
+			entry.state = states[iter->protoinfo.tcp.state];
+			counts.tcp++;
+
+		} else if (entry.proto == "udp") {
+
+			entry.state = "";
+			counts.udp++;
+
+		} else if (entry.proto == "icmp") {
+
+			type = iter->tuple[NFCT_DIR].l4dst.icmp.type;
+			code = iter->tuple[NFCT_DIR].l4dst.icmp.code;
+			entry.state = type + "/" + code;
+			counts.icmp++;
+
+		} else {
+			/*
+			 * If the protocol is something else, then we need
+			 * to know how long the name of the protocol is so
+			 * we can format accordingly later.
+			 */
+			if (entry.proto.size() > max.proto)
+				max.proto = entry.proto.size();
+
+			counts.other++;
+
+		}
+
+		/*
+		 * FILTERING
+		 */
+
+		if (flags.skiplb && (src == "127.0.0.1")) {
+			counts.skipped++;
+			continue;
+		}
+
+		if (flags.skipdns && (dstpt == "53")) {
+			counts.skipped++;
+			continue;
+		}
+
+		if (flags.filter_src && (src != filters.src)) {
+			counts.skipped++;
+			continue;
+		}
+
+		if (flags.filter_srcpt && (srcpt != filters.srcpt)) {
+			counts.skipped++;
+			continue;
+		}
+
+		if (flags.filter_dst && (dst != filters.dst)) {
+			counts.skipped++;
+			continue;
+		}
+
+		if (flags.filter_dstpt && (dstpt != filters.dstpt)) {
+			counts.skipped++;
+			continue; 
+		}
+
+		/*
+		 * RESOLVE AND TRUNCATE
+		 */
+
+		// Resolve Names if we need to
+		if (flags.lookup) {
+			resolve(entry.src,entry.sname,size);
+
+			size += 1 + digits(entry.srcpt);
+			if (size > max.src)
+				max.src = size;
+
+			resolve(entry.dst,entry.dname,size);
+			
+			size += 1 + digits(entry.dstpt);
+			if (size > max.dst)
+				max.dst = size;
+		}
+
+		/*
+		 * Add this to the array
+		 */
+		stable.push_back(entry);
+
+	} // end while (getline)
+}
+
+#else
 void build_table(const flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max)
@@ -997,6 +1239,7 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	input.close(); // close the ip_conntrack
 
 }
+#endif
 
 /*
  * This sorts the table based on the current sorting preference
