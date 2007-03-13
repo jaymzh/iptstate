@@ -139,7 +139,7 @@ static const char *states[] = {
 struct table_t {
 	string proto, state, ttl, sname, dname;
 	in_addr src, dst;
-	int srcpt, dstpt;
+	int srcpt, dstpt, bytes, packets;
 };
 // x/y of the terminal window
 struct screensize_t {
@@ -149,7 +149,7 @@ struct screensize_t {
 struct flags_t {
 	bool single, totals, lookup, skiplb, staticsize, skipdns, tag_truncate,
 	     	filter_src, filter_dst, filter_srcpt, filter_dstpt, noscroll,
-		nocolor;
+		nocolor, counters;
 };
 // Struct 'o counters
 struct counters_t {
@@ -161,7 +161,11 @@ struct filters_t {
 };
 // The max-length of fields in the stable table
 struct max_t {
-	unsigned int src, dst, proto, state, ttl;
+	unsigned int src, dst, proto, state, ttl, bytes, packets;
+};
+struct tmp_struct {
+	vector<struct nfct_conntrack> *cts;
+	int nfct_flags;
 };
 
 /*
@@ -169,7 +173,7 @@ struct max_t {
  */
 
 // Core functions
-void build_table(const flags_t &flags, const filters_t &filters,
+void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max);
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
@@ -189,7 +193,7 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 // General helper functions
 void split(char s, string line, string &p1, string &p2);
 void splita(char s, string line, vector<string> &result);
-int digits(int x);
+unsigned int digits(int x);
 bool check_ip(const char *arg);
 void help();
 void resolve(const in_addr &ip, string &name, unsigned int &size);
@@ -247,7 +251,7 @@ max_t max;
 flags.single = flags.totals = flags.lookup = flags.skiplb = flags.staticsize
 	= flags.skipdns = flags.tag_truncate = flags.filter_src
 	= flags.filter_dst = flags.filter_srcpt = flags.filter_dstpt
-	= flags.noscroll = flags.nocolor = false;
+	= flags.noscroll = flags.nocolor = flags.counters = false;
 ssize.x = ssize.y = 0;
 counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped = 0;
 filters.src = filters.dst = filters.srcpt = filters.dstpt = "";
@@ -255,6 +259,7 @@ max.src = max.dst = max.proto = max.state = max.ttl = 0;
 px = py = 0;
 
 static struct option long_options[] = {
+	{"counters", no_argument , 0, 'C'},
 	{"dst-filter", required_argument, 0, 'd'},
 	{"dstpt-filter", required_argument, 0, 'D'},
 	{"help", no_argument, 0, 'h'},
@@ -277,7 +282,7 @@ static struct option long_options[] = {
 int option_index = 0;
 
 // Command Line Arguments
-while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
+while ((tmpint = getopt_long(argc,argv,"Cd:D:hlmcoLfpR:r1b:s:S:t",long_options,
 				&option_index)) != EOF) {
 	switch (tmpint) {
 		case 0:
@@ -297,6 +302,10 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 			 *
 			 */
 
+			break;
+		// --counters
+		case 'C':
+			flags.counters = true;
 			break;
 		// --dst-filter
 		case 'd':
@@ -766,17 +775,39 @@ return(0);
 
 #ifndef IPTSTATE_USE_PROC
 int conntrack_hook(void *arg, unsigned int flags, int type,
-			void *ct_list)
+			void *tmp)
 {
-	static_cast<vector<struct nfct_conntrack> *>(ct_list)->push_back(
-		*((struct nfct_conntrack*)arg));
+
+	/*
+	 * FIXME:
+	 *
+	 * UGLY ALERT!!!
+	 *
+	 * I can't seem to find a way to get nfct's "flags" object
+	 * except inside a hook. So I built a struct to hold the
+	 * ct array *and* an int that I can save it to for later.
+	 * This is because depending on the nfct flags, I may
+	 * need to disable flags.counters.
+	 *
+	 */
+
+	// temporary variable for static_casting sanity
+	struct tmp_struct *ptr_tmp;
+	ptr_tmp = static_cast<struct tmp_struct*>(tmp);
+
+	// Push this ct onto the array
+	ptr_tmp->cts->push_back(*((struct nfct_conntrack*)arg));
+
+	// Save flags for later use
+	ptr_tmp->nfct_flags = flags;
+
 	return 1;
 }
 
 /*
  * This is the core of this program - build a table of states
  */
-void build_table(const flags_t &flags, const filters_t &filters,
+void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max)
 {
@@ -792,7 +823,8 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	 * These are ascii representations of various fields we parse in
 	 * before they get converted to in_addr/int/etc.
 	 */
-	string src, dst, srcpt, dstpt, proto, code, type, state, ttl;
+	/*string src, dst, srcpt, dstpt, proto, code, type, state, ttl;*/
+	string type, code;
 	/*
 	 * snprintf() require a real char*, unfortunately - this is just
 	 * for formatting the TTL.
@@ -801,11 +833,19 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	int seconds=0, minutes=0, hours=0, res=0;
 	// this is the array we parse the line into
 	vector<string> fields(MAXFIELDS);
-	// this is a temporary array for the nfct structs
-	vector<struct nfct_conntrack> cts;
 	struct protoent* pe = NULL;
 	table_t entry;
 	static struct nfct_handle *cth;
+
+	// this is a temporary array for the nfct structs
+	vector<struct nfct_conntrack> cts;
+	/*
+	 * This is the ugly struct for the nfct hook, that holds
+	 * the array of nfct structs and an int...
+	 * See note in conntrack_hook()
+	 */
+	struct tmp_struct tmp;
+	tmp.cts = &cts;
 
 	/*
 	 * Initialization
@@ -841,16 +881,44 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	// TTL we statically make 7: xxx:xx:xx
 	max.ttl = 9;
 
+	// Start with something sane
+	max.bytes = 2;
+	max.packets = 2;
+
 	cth = nfct_open(CONNTRACK, 0);
 	if (!cth) {
 		printf("ERROR: couldn't establish conntrack connection\n");
 		exit(1);
 	}
-	nfct_register_callback(cth, conntrack_hook, (void *)&cts);
+	nfct_register_callback(cth, conntrack_hook, (void *)&tmp);
 	res = nfct_dump_conntrack_table(cth, AF_INET);
 	if (res < 0) {
 		printf("ERROR: Couldn't retreive conntrack table\n");
 		exit(1);
+	}
+
+	if (flags.counters) {
+		if (!(tmp.nfct_flags & NFCT_COUNTERS_ORIG)) {
+			/* FIXME:
+		 	 *	Exiting here is painfully ugly.
+		 	 *  TODO:
+		 	 *  	Pass in mainwin to here... or something.
+		 	 */
+
+			/* FIXME2:
+			 *	flags really should be passed into
+			 *	build_table() as a const (it was before
+			 *	the backened conversion)... so we should
+			 *	probably pass in a int-ref called nfct_flags
+			 *	or something to pass back the flags with
+			 *	and do this junk out there.... then we
+			 *	could use c_warn() too.
+			 */
+			end_curses();
+			cerr << "ERROR: Counters not enabled in kernel\n";
+			flags.counters = false;
+			exit(1);
+		}
 	}
 
 	vector<struct nfct_conntrack>::iterator iter;
@@ -878,7 +946,7 @@ void build_table(const flags_t &flags, const filters_t &filters,
 		} else {
 			entry.proto = pe->p_name;
 		}
-				
+
 		// ttl
 		seconds = iter->timeout;
 		minutes = seconds/60;
@@ -889,8 +957,22 @@ void build_table(const flags_t &flags, const filters_t &filters,
 		snprintf(ttlc,11,"%3i:%02i:%02i",hours,minutes,seconds);
 		entry.ttl = ttlc; 
 
+		// Everything has addresses
 		entry.src.s_addr = iter->tuple[NFCT_DIR].src.v4;
 		entry.dst.s_addr = iter->tuple[NFCT_DIR].dst.v4;
+
+		// Counters
+		entry.bytes = iter->counters[NFCT_DIR].bytes;
+		entry.packets = iter->counters[NFCT_DIR].packets;
+		//cerr << " entry.bytes is " << entry.bytes << " and size is " << digits(entry.bytes) << endl;
+		//cerr << " entry.packets is " << entry.packets << " and size is " << digits(entry.packets) << endl;
+		if (digits(entry.bytes) > max.bytes) {
+			max.bytes = digits(entry.bytes);
+		}
+		if (digits(entry.packets) > max.packets) {
+			max.packets = digits(entry.packets);
+		}
+	
 
 		// OK, proto dependent stuff
 		if (entry.proto == "tcp" || entry.proto == "udp") {
@@ -934,32 +1016,48 @@ void build_table(const flags_t &flags, const filters_t &filters,
 		 * FILTERING
 		 */
 
-		if (flags.skiplb && (src == "127.0.0.1")) {
+		/*
+		 * FIXME: There's some awesome stupidity here. But it's here
+		 * 	for a reason. filters.* should be real ints
+		 * 	or inet_addrs as necessary, but if we do that
+		 * 	we'll break the #ifdef'd code below that's there for
+		 * 	backwards compatibility. Once we nuke that code
+		 * 	we make this MUCH cleaner.
+		 *
+		 * FIXME: Also, filtering can probably be pulled out to
+		 * 	it's own function once the other copy of build_table()
+		 * 	is gone.
+		 */
+		if (flags.skiplb && (inet_ntoa(entry.src) == "127.0.0.1")) {
 			counts.skipped++;
 			continue;
 		}
 
-		if (flags.skipdns && (dstpt == "53")) {
+		if (flags.skipdns && (entry.dstpt == 53)) {
 			counts.skipped++;
 			continue;
 		}
 
-		if (flags.filter_src && (src != filters.src)) {
+		if (flags.filter_src
+		    && (inet_ntoa(entry.src) != filters.src.c_str())) {
 			counts.skipped++;
 			continue;
 		}
 
-		if (flags.filter_srcpt && (srcpt != filters.srcpt)) {
+		if (flags.filter_srcpt
+		    && (entry.srcpt != atoi(filters.srcpt.c_str()))) {
 			counts.skipped++;
 			continue;
 		}
 
-		if (flags.filter_dst && (dst != filters.dst)) {
+		if (flags.filter_dst
+		    && (inet_ntoa(entry.dst) != filters.dst)) {
 			counts.skipped++;
 			continue;
 		}
 
-		if (flags.filter_dstpt && (dstpt != filters.dstpt)) {
+		if (flags.filter_dstpt
+		    && (entry.dstpt != atoi(filters.dstpt.c_str()))) {
 			counts.skipped++;
 			continue; 
 		}
@@ -992,7 +1090,7 @@ void build_table(const flags_t &flags, const filters_t &filters,
 }
 
 #else
-void build_table(const flags_t &flags, const filters_t &filters,
+void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max)
 {
@@ -1053,6 +1151,10 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	max.state = 11;
 	// TTL we statically make 7: xxx:xx:xx
 	max.ttl = 9;
+
+	// Some defaults
+	max.bytes = 2;
+	max.packets = 2;
 
 	// Open the file
 	ifstream input(CONNTRACK);
@@ -1442,12 +1544,22 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	 * Print column headers
 	 */
 	if (flags.single) {
-		printf(format.c_str(),"Source","Destination","Proto","State",
-				"TTL");
+		if (flags.counters) {
+			printf(format.c_str(),"Source","Destination","Proto",
+				"State","TTL","B","P");
+		} else {
+			printf(format.c_str(),"Source","Destination","Proto",
+				"State","TTL");
+		}
 	} else {
 		wattron(mainwin,A_BOLD);
-		wprintw(mainwin,format.c_str(),"Source","Destination","Proto",
-				"State","TTL");
+		if (flags.counters) {
+			wprintw(mainwin,format.c_str(),"Source","Destination",
+				"Proto", "State","TTL","B","P");
+		} else {
+			wprintw(mainwin,format.c_str(),"Source","Destination",
+				"Proto","State","TTL");
+		}
 		wattroff(mainwin,A_BOLD);
 	}
 
@@ -1503,14 +1615,21 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 	ssize = get_size(flags.single);
 
 	// These three, are easy
+	/*
 	unsigned int ttl = max.ttl;
 	unsigned int state = max.state;
 	unsigned int proto = max.proto;
+	*/
 
 	/* what's left is the above three, plus 4 spaces
 	 * (one between each of 5 fields)
 	 */
-	unsigned int left = ssize.x - ttl - state - proto - 4;
+	unsigned int left = ssize.x - max.ttl - max.state - max.proto
+				- 4;
+	if (flags.counters) {
+		//cerr << "left is " << left << " bytes is " << max.bytes << " packs is " << max.packets << endl;
+		left -= (max.bytes + max.packets + 2);
+	}
 
 	/*
 	 * The rest is *prolly* going to be divided between src
@@ -1589,17 +1708,23 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 	 */
 
 	ostringstream buffer;
-	buffer << "\%-" << src << "s \%-" << dst << "s \%-" << proto << "s \%-"
-		<< state << "s \%-" << ttl << "s";
+	buffer << "\%-" << src << "s \%-" << dst << "s \%-" << max.proto << "s \%-"
+		<< max.state << "s \%-" << max.ttl << "s";
+
+	if (flags.counters) {
+		buffer << " \%-" << max.bytes << "s \%-" << max.packets << "s";
+	}
 
 	if (flags.single)
 		buffer << "\n";
 
 	format = buffer.str();
 
+/*
 	max.ttl = ttl;
 	max.state = state;
 	max.proto = proto;
+*/
 	max.dst = dst;
 	max.src = src;
 
@@ -2011,7 +2136,7 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 {
 	ostringstream buffer;
 	buffer.str("");
-	string src,dst;
+	string src,dst,b,p;
 	
 	if (flags.lookup)
 		truncate(table,max,flags);
@@ -2043,10 +2168,26 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 			dst = inet_ntoa(table.dst);
 		}
 	}
+
+	if (flags.counters) {
+		buffer << table.bytes;
+		b = buffer.str();
+		buffer.str("");
+		buffer << table.packets;
+		p = buffer.str();
+		buffer.str("");
+	}
+		
 	if (flags.single) {
-		printf(format.c_str(), src.c_str(), dst.c_str(),
+		if (flags.counters) {
+			printf(format.c_str(), src.c_str(), dst.c_str(),
+				table.proto.c_str(), table.state.c_str(),
+				table.ttl.c_str(), b.c_str(),p.c_str());
+		} else {
+			printf(format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
 				table.ttl.c_str());
+		}
 	} else {
 		int color = 0;
 		if (!flags.nocolor) {
@@ -2058,9 +2199,16 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 				color = 3;
 			wattron(mainwin,COLOR_PAIR(color));
 		}
-		wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
+		if (flags.counters) {
+			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
+				table.proto.c_str(), table.state.c_str(),
+				table.ttl.c_str(),b.c_str(),p.c_str());
+		} else {
+			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
 				table.ttl.c_str());	
+		}
+	
 		if (!flags.nocolor && color != 0)
 			wattroff(mainwin,COLOR_PAIR(color));
 	}
@@ -2102,9 +2250,9 @@ void splita(char s, string line, vector<string> &result)
 /*
  * This determines the length of an integer (i.e. number of digits)
  */
-int digits(int x)
+unsigned int digits(int x)
 {
-	return (int) floor(log10((double)x))+1;
+	return (unsigned int) floor(log10((double)x))+1;
 }
 
 /*
