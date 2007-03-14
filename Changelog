@@ -1,3 +1,9 @@
+2.2-dev
+- Added some logic to handle state tables larger than 32767 entries which
+  breaks ncurses if you try to make a pad that large.
+- Cleanup the time.h includes
+- Port to new libnetfilter_conntrack libs
+
 2.1
 - Released 10/05/06
 - Fixed bug where -s was doing what -S should do and -d was doing

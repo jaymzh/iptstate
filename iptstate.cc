@@ -49,7 +49,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/time.h>
+#include <time.h>
 #include <getopt.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -65,7 +65,7 @@ extern "C" {
 #endif
 using namespace std;
 
-#define VERSION "2.1+CVS"
+#define VERSION "2.2-dev"
 /* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
