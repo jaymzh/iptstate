@@ -2,7 +2,8 @@
 - Added some logic to handle state tables larger than 32767 entries which
   breaks ncurses if you try to make a pad that large.
 - Cleanup the time.h includes
-- Port to new libnetfilter_conntrack libs
+- Port to new libnetfilter_conntrack library
+- Add support for byte/packet counters
 
 2.1
 - Released 10/05/06
