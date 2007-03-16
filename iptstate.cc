@@ -38,6 +38,13 @@
  *
  */ 
 
+/* FIXME:
+ *   TODO:
+ *     - fix scrolling with new 'highlight'ing
+ *     - fix deleting non-TCP states
+ *     - prompt for deletes
+ */
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -184,6 +191,7 @@ void build_table(flags_t &flags, const filters_t &filters,
 #ifndef IPTSTATE_USE_PROC
 int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 			void *tmp);
+void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags);
 #endif
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		vector<table_t> &stable, string &sorting);
@@ -191,13 +199,13 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 		const string &format, const string &sorting,
 		const filters_t &filters, const counters_t &counts,
 		const screensize_t &ssize, const max_t &max,
-		WINDOW *mainwin);
+		WINDOW *mainwin, unsigned int &curr);
 void determine_format(max_t &max, screensize_t &ssize, string &format,
 		const flags_t &flags);
 void interactive_help(const string &sorting, const flags_t &flags,
 		const filters_t &filters);
 void printline(table_t &table, const flags_t &flags, const string &format,
-		const max_t &max, WINDOW *mainwin);
+		const max_t &max, WINDOW *mainwin, const bool curr);
 
 // General helper functions
 void split(char s, string line, string &p1, string &p2);
@@ -246,7 +254,7 @@ string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins, secs,
 ostringstream ostream;
 vector<table_t> stable;
 int tmpint = 0, sortby = 0, rate = 1;
-unsigned int py = 0, px = 0;
+unsigned int py = 0, px = 0, curr_state = 0;
 timeval selecttimeout;
 fd_set readfd;
 flags_t flags;
@@ -488,7 +496,13 @@ while(1) {
 	build_table(flags,filters,stable,counts,max);
 
 	/*
-	 * FIXME: There has to be a better way...
+	 * Originally I strived to do this the "right" way by calling
+	 * nfct_is_set(ct, ATTR_ORIG_COUNGERS) to determine if counters
+	 * were enabled. BUT, if counters are not enabled, nfct_get_attr()
+	 * returns NULL, so this test is just as valid.
+	 *
+	 * Conversely checking is_set and then get_attr() is twice the calls
+	 * for no additional benefit.
 	 */
 	if (flags.counters && stable[0].bytes == 0) {
 		prompt = "Counters requested, but not enabled in the kernel!";
@@ -513,7 +527,7 @@ while(1) {
 	 * Now we print out the table in whichever format we're configured for
 	 */
 	print_table(stable,flags,format,sorting,filters,counts,ssize,max,
-			mainwin);
+			mainwin,curr_state);
 
 	// Exit if we're only supposed to run once
 	if (flags.single)
@@ -692,6 +706,11 @@ while(1) {
 				wmove(mainwin,0,0);
 				wclrtoeol(mainwin);
 				break;
+#ifndef IPTSTATE_USE_PROC
+			case 'x':
+				delete_state(mainwin, stable[curr_state], flags);
+				break;
+#endif
 			/*
 			 * Window navigation
 			 */
@@ -710,16 +729,32 @@ while(1) {
 				 * then the bottom of the screen as at the
 				 * bottom of the text, no more scrolling.
 				 */
-				if (py + ssize.y < stable.size()+4)
-					py++;
+
+				if (curr_state >= stable.size()-1)
+					break;
+
+				// If we have room to scroll down
+				// AND if cur is at the bottom of a page
+				// scroll down
+				if ((py + ssize.y < stable.size()+4)
+				    && ((curr_state+4)/ssize.y == py + ssize.y))
+						py++;
+
+				curr_state++;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_UP:
 			case 'k':
 				if (flags.noscroll)
 					break;
-				if (py > 0)
+				if (curr_state == 0)
+					break;
+
+				// If we have room to scroll and curr as at
+				// the top of the apge, scroll up
+				if ((py > 0) && ((curr_state+4)/ssize.y == 1))
 					py--;
+				curr_state--;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_NPAGE:
@@ -743,10 +778,13 @@ while(1) {
 				 *
 				 * Otherwise, go down a screen size.
 				 */
-				if (py + ssize.y*2 > stable.size()+4)
+				if (py + ssize.y*2 > stable.size()+4) {
 					py = stable.size()+4-ssize.y;
-				else
+					curr_state = py;
+				} else {
 					py += ssize.y;
+					curr_state += ssize.y;
+				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_PPAGE:
@@ -762,10 +800,13 @@ while(1) {
 				 * Otherwise if we're less than a page from the
 				 * top, go to the top, else go up a page.
 				 */
-				if (py < ssize.y)
+				if (py < ssize.y) {
 					py = 0;
-				else
+					curr_state = 0;
+				} else {
 					py -= ssize.y;
+					curr_state -= ssize.y;
+				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_HOME:
@@ -852,16 +893,19 @@ void build_table(flags_t &flags, const filters_t &filters,
 
 	cth = nfct_open(CONNTRACK, 0);
 	if (!cth) {
+		end_curses();
 		printf("ERROR: couldn't establish conntrack connection\n");
-		exit(1);
+		exit(2);
 	}
 	nfct_callback_register(cth, NFCT_T_ALL, conntrack_hook, (void *)&hook);
 	res = nfct_query(cth, NFCT_Q_DUMP, &family);
-	nfct_close(cth);
 	if (res < 0) {
-		printf("ERROR: Couldn't retreive conntrack table\n");
-		exit(1);
+		end_curses();
+		printf("ERROR: Couldn't retreive conntrack table: %s\n",
+			strerror(errno));
+		exit(2);
 	}
+	nfct_close(cth);
 
 }
 
@@ -942,7 +986,6 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	if (digits(entry.packets) > max->packets) {
 		max->packets = digits(entry.packets);
 	}
-
 
 	// OK, proto dependent stuff
 	if (entry.proto == "tcp" || entry.proto == "udp") {
@@ -1399,7 +1442,7 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 		const string &format, const string &sorting,
 		const filters_t &filters, const counters_t &counts,
 		const screensize_t &ssize, const max_t &max,
-		WINDOW *mainwin)
+		WINDOW *mainwin, unsigned int &curr)
 {
 
 	/*
@@ -1542,7 +1585,8 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	 */
 	unsigned int limit = (stable.size() < NLINES) ? stable.size() : NLINES;
 	for (unsigned int tmpint=0; tmpint < limit; tmpint++) {
-		printline(stable[tmpint],flags,format,max,mainwin);
+		printline(stable[tmpint],flags,format,max,mainwin,
+			(curr == tmpint));
 		if (!flags.single && flags.noscroll && 
 				(tmpint >= ssize.y-4 ||
 				   (flags.totals && tmpint >= ssize.y-5)))
@@ -2113,7 +2157,7 @@ out:
  * An abstraction of priting a line for both single/curses modes
  */
 void printline(table_t &table, const flags_t &flags, const string &format,
-		const max_t &max, WINDOW *mainwin)
+		const max_t &max, WINDOW *mainwin, const bool curr)
 {
 	ostringstream buffer;
 	buffer.str("");
@@ -2178,7 +2222,10 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 				color = 2;
 			else if (table.proto == "icmp")
 				color = 3;
+			if (curr)
+				color += 4;
 			wattron(mainwin,COLOR_PAIR(color));
+				
 		}
 		if (flags.counters) {
 			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
@@ -2468,6 +2515,10 @@ static WINDOW* start_curses(flags_t &flags)
 		init_pair(3,COLOR_RED,COLOR_BLACK);
 		// for prompts
 		init_pair(4,COLOR_BLACK,COLOR_RED);
+		// for the currently selected row
+		init_pair(5,COLOR_BLACK,COLOR_GREEN);
+		init_pair(6,COLOR_BLACK,COLOR_YELLOW);
+		init_pair(7,COLOR_BLACK,COLOR_RED);
 	} else {
 		flags.nocolor = true;
 	}
@@ -2785,4 +2836,45 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 
 	return;
 }
+
+#ifndef IPTSTATE_USE_PROC
+/*
+ * Take in a 'curr' value, and delete a given conntrack
+ */
+void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
+{
+	struct nfct_handle *cth;
+	struct nf_conntrack *ct;
+	cth = nfct_open(CONNTRACK, 0);
+	ct = nfct_new();
+	int ret;
+
+	stringstream msg;
+	msg.str("");
+	msg << "Deleting state: " << inet_ntoa(entry.src) << ":" << entry.srcpt
+		<< " -> " << inet_ntoa(entry.dst) << ":" << entry.dstpt;
+	c_warn(win,msg.str(),flags);
+
+	nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, AF_INET);
+
+	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_SRC, entry.src.s_addr);
+	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_DST, entry.dst.s_addr);
+
+	if (entry.proto == "tcp") {
+		nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
+        //	nfct_set_attr_u8(ct, ATTR_TCP_STATE, TCP_CONNTRACK_LISTEN);
+	}
+
+	if (entry.proto == "tcp" || entry.proto == "udp") {
+		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC,
+			htons(entry.srcpt));
+		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST,
+			htons(entry.dstpt));
+	}
+
+	ret = nfct_query(cth, NFCT_Q_DESTROY, ct);
+
+}
+#endif
+
 

@@ -4,6 +4,7 @@
 - Cleanup the time.h includes
 - Port to new libnetfilter_conntrack library
 - Add support for byte/packet counters
+- Add support for deleting states
 
 2.1
 - Released 10/05/06
