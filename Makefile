@@ -27,7 +27,7 @@ OLDLIBS?= -lncurses
 all:	iptstate
 
 
-welcome:
+.make.welcome:
 	@\
 	echo "+------------------------------------------------------------+" ;\
 	echo "| Welcome to IP Tables State by Phil Dibowitz                |" ;\
@@ -41,9 +41,11 @@ welcome:
 	echo "|                                                            |" ;\
 	echo "| Let's compile...                                           |" ;\
 	echo "+------------------------------------------------------------+" ;\
-	echo ""
+	echo "";
 
-iptstate:	welcome iptstate.cc
+	@touch .make.welcome
+
+iptstate:	.make.welcome iptstate.cc
 
 	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS)
 	@touch iptstate
@@ -53,7 +55,9 @@ iptstate:	welcome iptstate.cc
 	echo "All done. Do 'make install' as root and you should be set to go!" ;\
 	echo ""
 
-iptstate_proc:	welcome iptstate.cc
+iptstate_proc: .make.iptstate_proc
+
+.make.iptstate_proc: welcome iptstate.cc
 	@\
 	echo "WARNING: You are compiling iptstate to use the /proc interface" ;\
 	echo "	to netfilter. This is deprecated and will be removed from" ;\
@@ -61,7 +65,7 @@ iptstate_proc:	welcome iptstate.cc
 	echo ""
 
 	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(OLDLIBS) -DIPTSTATE_USE_PROC
-	@touch iptstate
+	@touch .make.iptstate_proc
 
 	@\
 	echo "" ;\

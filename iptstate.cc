@@ -1,4 +1,6 @@
 /*
+ * vim:textwidth=78:
+ *
  * iptstate.cc
  * IPTables State
  *
@@ -40,9 +42,7 @@
 
 /* FIXME:
  *   TODO:
- *     - fix scrolling with new 'highlight'ing
- *     - fix deleting non-TCP states
- *     - prompt for deletes
+ *     - Wait for response on why deletting ICMP doesn't work.
  */
 
 #include <iostream>
@@ -495,6 +495,10 @@ while(1) {
 	// Build our table
 	build_table(flags,filters,stable,counts,max);
 
+	if (curr_state > stable.size()-1) {
+		curr_state = stable.size()-1;
+	}
+
 	/*
 	 * Originally I strived to do this the "right" way by calling
 	 * nfct_is_set(ct, ATTR_ORIG_COUNGERS) to determine if counters
@@ -719,27 +723,42 @@ while(1) {
 				if (flags.noscroll)
 					break;
 				/*
+				 * GENERAL NOTE:
 				 * py is the top of the window,
 				 * ssize.y is the height of the window,
 				 * so py+ssize.y is the bottom of the window.
 				 *
+				 * BOTTOM OF SCROLLING:
 				 * Since stable.size()+4 (for the headers) is
 				 * the bottom of the text we've written, if
-				 *    py+ssize.y == stable.size()
+				 *    py+ssize.y == stable.size()+4
 				 * then the bottom of the screen as at the
 				 * bottom of the text, no more scrolling.
+				 *
+				 * However, we only want to scroll the page
+				 * when the cursor is at the bottom, i.e.
+				 * when curr_state+4 == py+ssize.y
 				 */
 
+				/*
+				 * If the cursor is at the end of the state
+				 * table, we know we're done.
+				 */
 				if (curr_state >= stable.size()-1)
 					break;
 
-				// If we have room to scroll down
-				// AND if cur is at the bottom of a page
-				// scroll down
+				/*
+				 * If we have room to scroll down AND if cur is
+				 * at the bottom of a page scroll down.
+				 */
 				if ((py + ssize.y < stable.size()+4)
-				    && ((curr_state+4)/ssize.y == py + ssize.y))
+				    && (curr_state+4 == py + ssize.y))
 						py++;
 
+				/*
+				 * In any case (other than the break above),
+				 * DOWN means the cursor moves down.
+				 */
 				curr_state++;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
@@ -747,14 +766,44 @@ while(1) {
 			case 'k':
 				if (flags.noscroll)
 					break;
-				if (curr_state == 0)
-					break;
 
-				// If we have room to scroll and curr as at
-				// the top of the apge, scroll up
-				if ((py > 0) && ((curr_state+4)/ssize.y == 1))
+				/*
+				 * This one is tricky.
+				 *
+				 * First thing we need to know is when the cursor
+				 * is at the top of the page. This is simply when
+				 * curr_state+4 (cursor location), is exactly
+				 * one more than the top of the window (py),
+				 * i.e. when curr_state+4 == py+1.
+				 *
+				 * PAGE SCROLLING:
+				 * IF we're not page-scrolled all the way up
+				 *    (i.e. py > 0)
+				 *    AND the cursor is at the top of the page
+				 * OR the cursor is at the top of the list,
+				 *    AND we're not yet at the top (showing
+				 *    the headers).
+				 * THEN we scroll up.
+				 *
+				 * CURSOR SCROLLING:
+				 * Unlike KEY_DOWN, we don't break just because
+				 * the cursor can't move anymore - on the way
+				 * ip we may still have page-scrolling to do. So
+				 * test to make sure we're not at state 0, and if
+				 * so, we scroll up.
+				 */
+
+				/*
+				 * Basically:
+				 *  IF the cursor bumps the top of the screen
+				 *  OR we need to scroll up for headers
+				 */
+				if (   (py > 0 && (curr_state+4) == (py+1) )
+				    || (curr_state == 0 && py > 0          ) )
 					py--;
-				curr_state--;
+
+				if (curr_state > 0)
+					curr_state--;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_NPAGE:
@@ -767,6 +816,7 @@ while(1) {
 				 */
 				if (stable.size()+4 < ssize.y)
 					break;
+
 				/*
 				 * Otherwise, if the bottom of the screen
 				 *    (current position + screen size
@@ -780,10 +830,19 @@ while(1) {
 				 */
 				if (py + ssize.y*2 > stable.size()+4) {
 					py = stable.size()+4-ssize.y;
-					curr_state = py;
 				} else {
 					py += ssize.y;
-					curr_state += ssize.y;
+				}
+
+				/*
+				 * For the cursor, we try to move it down one
+				 * screen as well, but if that's too far,
+				 * we bring it up to the largest number it can
+				 * be.
+				 */
+				curr_state += ssize.y;
+				if (curr_state > stable.size()) {
+					curr_state = stable.size();
 				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
@@ -794,7 +853,7 @@ while(1) {
 				/*
 				 * If we're at the top, ignore
 				 */
-				if (py == 0)
+				if (py == 0 && curr_state == 0)
 					break;
 				/*
 				 * Otherwise if we're less than a page from the
@@ -802,9 +861,17 @@ while(1) {
 				 */
 				if (py < ssize.y) {
 					py = 0;
-					curr_state = 0;
 				} else {
 					py -= ssize.y;
+				}
+
+				/*
+				 * We bring the cursor up a page too, unless
+				 * that's too far.
+				 */
+				if (curr_state < ssize.y) {
+					curr_state = 0;
+				} else {
 					curr_state -= ssize.y;
 				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
@@ -812,7 +879,7 @@ while(1) {
 			case KEY_HOME:
 				if (flags.noscroll)
 					break;
-				px = py = 0;
+				px = py = curr_state = 0;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_END:
@@ -821,6 +888,7 @@ while(1) {
 				py = stable.size()+4-ssize.y;
 				if (py < 0)
 					py = 0;
+				curr_state = stable.size();
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 		}
@@ -935,7 +1003,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	int seconds, minutes, hours;
 	unsigned int size = 0;
 	char ttlc[11];
-	string type, code;
+	ostringstream typecode;
 
 	/*
 	 * Clear the entry
@@ -1008,9 +1076,11 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 
 	} else if (entry.proto == "icmp") {
 
-		type = nfct_get_attr_u8(ct, ATTR_ICMP_TYPE);
-		code = nfct_get_attr_u8(ct, ATTR_ICMP_CODE);
-		entry.state = type + "/" + code;
+		typecode.str("");
+		typecode << nfct_get_attr_u16(ct, ATTR_ICMP_TYPE)
+			<< "/" << nfct_get_attr_u16(ct, ATTR_ICMP_CODE);
+
+		entry.state = typecode.str();
 		counts->icmp++;
 
 	} else {
@@ -1774,7 +1844,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	 *
 	 * If the screen is bigger than this, we deal with it below.
 	 */
-	unsigned int maxrows = 36;
+#ifndef IPTSTATE_USE_PROC
+	unsigned int maxrows = 39;
+#else
+	unsigned int maxrows = 37;
+#endif
 	unsigned int maxcols = 80;
 
 	/*
@@ -1840,6 +1914,13 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	// We don't want anything except the title up against the
 	// border
 	x++;
+
+	// Print instructions first
+	mvwaddstr(helpwin,y++,x,"Navigation:");
+	mvwaddstr(helpwin,y++,x,
+		"  Up/j, Down/k, Left/h, Right/l, Home, or End to navigate");
+	mvwaddstr(helpwin,y++,x,"  Press any other key to continue...");
+	y++;
 
 	// Print settings
 	mvwaddstr(helpwin,y++,x,"Current settings:");
@@ -2011,11 +2092,13 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tToggle display of totals");
 
-	y++;
-
-	mvwaddstr(helpwin,y++,x,
-			"Up/j, Down/k, Left/h, Right/l, Home, or End to navigate");
-	mvwaddstr(helpwin,y++,x,"Press any other key to continue...");
+#ifndef IPTSTATE_USE_PROC
+	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  x");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,
+		"\tDelete the currently highlighted state from netfilter");
+#endif
 
 	y++;
 
@@ -2848,31 +2931,47 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 	cth = nfct_open(CONNTRACK, 0);
 	ct = nfct_new();
 	int ret;
+	string response;
 
-	stringstream msg;
+	ostringstream msg;
 	msg.str("");
 	msg << "Deleting state: " << inet_ntoa(entry.src) << ":" << entry.srcpt
-		<< " -> " << inet_ntoa(entry.dst) << ":" << entry.dstpt;
-	c_warn(win,msg.str(),flags);
+		<< " -> " << inet_ntoa(entry.dst) << ":" << entry.dstpt
+		<< " -- Are you sure? (y/n)";
+	get_input(win,response,msg.str(),flags);
+
+	if (response != "y" && response != "Y" && response != "yes" &&
+		response != "YES" && response != "Yes") {
+		c_warn(win,"NOT deleting state.",flags);
+		return;
+	}
 
 	nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, AF_INET);
 
 	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_SRC, entry.src.s_addr);
 	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_DST, entry.dst.s_addr);
 
-	if (entry.proto == "tcp") {
-		nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-        //	nfct_set_attr_u8(ct, ATTR_TCP_STATE, TCP_CONNTRACK_LISTEN);
-	}
+	nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO,
+			getprotobyname(entry.proto.c_str())->p_proto);
 
 	if (entry.proto == "tcp" || entry.proto == "udp") {
 		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC,
 			htons(entry.srcpt));
 		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST,
 			htons(entry.dstpt));
+	} else if (entry.proto == "icmp") {
+		string type, code;
+		split('/',entry.state,type,code);
+		nfct_set_attr_u16(ct, ATTR_ICMP_TYPE, atoi(type.c_str()));
+		nfct_set_attr_u16(ct, ATTR_ICMP_CODE, atoi(code.c_str()));
 	}
 
 	ret = nfct_query(cth, NFCT_Q_DESTROY, ct);
+	if (ret < 0) {
+		string msg = "Failed to delete state: ";
+		msg += strerror(errno);
+		c_warn(win, msg.c_str(), flags);
+	}
 
 }
 #endif

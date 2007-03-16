@@ -5,6 +5,8 @@
 - Port to new libnetfilter_conntrack library
 - Add support for byte/packet counters
 - Add support for deleting states
+- Move navigation help to top of interactive help so people can learn how
+  to navigate without having to navigate to the bottom of the help
 
 2.1
 - Released 10/05/06

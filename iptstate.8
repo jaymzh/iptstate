@@ -1,7 +1,7 @@
 .\" Process this file with
 .\" groff -man -Tascii iptstate.1
 .\"
-.TH IPTSTATE 8 "OCTOBER 2006" "" ""
+.TH IPTSTATE 8 "MARCH 2007" "" ""
 .\"
 .\" Man page written by Phil Dibowitz <phil@ipom.com>
 .\"
@@ -24,6 +24,9 @@ Output can be sorted by any field, or any field reversed. Users can choose to ha
 .TP
 .B -c, --no-color
 Toggle color-code by protocol
+.TP
+.B -C, --counters
+Toggle display of bytes/packets counters
 .TP
 .B -d, --dst-filter \fIIP\fP
 Only show states with a destination of \fIIP\fP
@@ -146,7 +149,7 @@ All bugs should be reported to Phil Dibowitz <phil@ipom.com>, \fBNOT\fR your loc
 .PP
 \fBiptstate\fP does not handle automatically handle window-resizes while in the \fBinteractive help\fP screen. If you do resize while in this window, you should return to the main window, hit \fBctrl-L\fP to re-calculate and re-draw the screen, and then, if you choose, return to the \fBinteractive help\fP.
 .PP
-Reading out of /proc/net/ip_conntrack (which \fBiptstate\fP does) can be be racy on SMP systems, and can hurt performance on very heavily loaded firewalls.
+\fBiptstate\fP currently uses libnetfilter_conntrack to access the netfilter state table. However, older versions read out of /proc/net/ip_conntrack, and the current version can still be compiled to do this. Doing this can be be racy on SMP systems, and can hurt performance on very heavily loaded firewalls. This deprecated method should be avoided - support will be removed in future versions.
 
 .SH SEE ALSO
 .BR iptables (8)
