@@ -7,6 +7,10 @@
 - Add support for deleting states
 - Move navigation help to top of interactive help so people can learn how
   to navigate without having to navigate to the bottom of the help
+- When --lookup is enabled, resolve port names as well ast hostnames
+  (reported by Viliam Holub <holub@nenya.ms.mff.cuni.cz>)
+- Display the ICMP ID on ICMP states
+- Fix scrolling bug if totals or filters were enabled
 
 2.1
 - Released 10/05/06

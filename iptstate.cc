@@ -40,11 +40,6 @@
  *
  */ 
 
-/* FIXME:
- *   TODO:
- *     - Wait for response on why deletting ICMP doesn't work.
- */
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -64,6 +59,7 @@
 extern "C" {
 	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 	#include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
+	#include <libnetfilter_conntrack/libnetfilter_conntrack_icmp.h>
 };
 #else
 	#define CONNTRACK "/proc/net/ip_conntrack"
@@ -144,7 +140,7 @@ static const char *states[] = {
  */
 // One state-table entry
 struct table_t {
-	string proto, state, ttl, sname, dname;
+	string proto, state, ttl, sname, dname, spname, dpname;
 	in_addr src, dst;
 	int srcpt, dstpt, bytes, packets;
 };
@@ -213,7 +209,9 @@ void splita(char s, string line, vector<string> &result);
 unsigned int digits(int x);
 bool check_ip(const char *arg);
 void help();
-void resolve(const in_addr &ip, string &name, unsigned int &size);
+void resolve_names(table_t &entry, max_t &max);
+void resolve_host(const in_addr &ip, string &name);
+void resolve_port(const int &port, string &name, const string &proto);
 void truncate(table_t &table, const max_t &max, const flags_t &flags);
 void winch_handler(int sig);
 void kill_handler(int sig);
@@ -253,7 +251,7 @@ string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins, secs,
        hrs, sorting, tmpstring, format, prompt;
 ostringstream ostream;
 vector<table_t> stable;
-int tmpint = 0, sortby = 0, rate = 1;
+int tmpint = 0, sortby = 0, rate = 1, hdrs = 0;
 unsigned int py = 0, px = 0, curr_state = 0;
 timeval selecttimeout;
 fd_set readfd;
@@ -492,11 +490,29 @@ while(1) {
 		term_too_small();
 	}
 
+	// And our header size
+	hdrs = 3;
+	if (flags.totals) {
+		hdrs++;
+	}
+	if (flags.filter_src || flags.filter_dst || flags.filter_srcpt
+	    || flags.filter_dstpt) {
+		hdrs++;
+	}
+
 	// Build our table
 	build_table(flags,filters,stable,counts,max);
 
+	/*
+	 * Now that we have the new table, make sure our page/cursor positions
+	 * still make sense.
+	 */
 	if (curr_state > stable.size()-1) {
 		curr_state = stable.size()-1;
+	}
+
+	if (py > (stable.size()+hdrs+1)) {
+		py == stable.size()+hdrs+1;
 	}
 
 	/*
@@ -505,8 +521,9 @@ while(1) {
 	 * were enabled. BUT, if counters are not enabled, nfct_get_attr()
 	 * returns NULL, so this test is just as valid.
 	 *
-	 * Conversely checking is_set and then get_attr() is twice the calls
-	 * for no additional benefit.
+	 * Conversely checking is_set and then get_attr() inside our callback
+	 * is twice the calls per-state if they are enabled, for no additional
+	 * benefit.
 	 */
 	if (flags.counters && stable[0].bytes == 0) {
 		prompt = "Counters requested, but not enabled in the kernel!";
@@ -526,7 +543,7 @@ while(1) {
 	 * were off parsing and sorting data.
 	 */
 	determine_format(max,ssize,format,flags);
-	
+
 	/*
 	 * Now we print out the table in whichever format we're configured for
 	 */
@@ -729,9 +746,9 @@ while(1) {
 				 * so py+ssize.y is the bottom of the window.
 				 *
 				 * BOTTOM OF SCROLLING:
-				 * Since stable.size()+4 (for the headers) is
+				 * Since stable.size()+hdrs+1 is
 				 * the bottom of the text we've written, if
-				 *    py+ssize.y == stable.size()+4
+				 *    py+ssize.y == stable.size()+hdrs+1
 				 * then the bottom of the screen as at the
 				 * bottom of the text, no more scrolling.
 				 *
@@ -751,7 +768,7 @@ while(1) {
 				 * If we have room to scroll down AND if cur is
 				 * at the bottom of a page scroll down.
 				 */
-				if ((py + ssize.y < stable.size()+4)
+				if ((py + ssize.y < stable.size()+hdrs+1)
 				    && (curr_state+4 == py + ssize.y))
 						py++;
 
@@ -772,9 +789,9 @@ while(1) {
 				 *
 				 * First thing we need to know is when the cursor
 				 * is at the top of the page. This is simply when
-				 * curr_state+4 (cursor location), is exactly
-				 * one more than the top of the window (py),
-				 * i.e. when curr_state+4 == py+1.
+				 * curr_state+hdrs+1 cursor location), is
+				 * exactly one more than the top of the window
+				 * (py), * i.e. when curr_state+hdrs+1 == py+1.
 				 *
 				 * PAGE SCROLLING:
 				 * IF we're not page-scrolled all the way up
@@ -798,8 +815,8 @@ while(1) {
 				 *  IF the cursor bumps the top of the screen
 				 *  OR we need to scroll up for headers
 				 */
-				if (   (py > 0 && (curr_state+4) == (py+1) )
-				    || (curr_state == 0 && py > 0          ) )
+				if (  (py > 0 && (curr_state+hdrs+1) == (py+1))
+				   || (curr_state == 0 && py > 0              ) )
 					py--;
 
 				if (curr_state > 0)
@@ -814,7 +831,7 @@ while(1) {
 				 * If the screen is bigger than the text,
 				 * ignore.
 				 */
-				if (stable.size()+4 < ssize.y)
+				if (stable.size()+hdrs+1 < ssize.y)
 					break;
 
 				/*
@@ -823,13 +840,13 @@ while(1) {
 				 *     == py + ssize.y)
 				 * were to go down one screen (thus:
 				 *     py + ssize.y*2),
-				 * and that is bigger than the whole table, just
+				 * and that is bigger than the whole pad, just
 				 * go to the bottom.
 				 *
 				 * Otherwise, go down a screen size.
 				 */
-				if (py + ssize.y*2 > stable.size()+4) {
-					py = stable.size()+4-ssize.y;
+				if (py + ssize.y*2 > stable.size()+hdrs+1) {
+					py = stable.size()+hdrs+1-ssize.y;
 				} else {
 					py += ssize.y;
 				}
@@ -885,7 +902,7 @@ while(1) {
 			case KEY_END:
 				if (flags.noscroll)
 					break;
-				py = stable.size()+4-ssize.y;
+				py = stable.size()+hdrs+1-ssize.y;
 				if (py < 0)
 					py = 0;
 				curr_state = stable.size();
@@ -1001,7 +1018,6 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	// some vars
 	struct protoent* pe = NULL;
 	int seconds, minutes, hours;
-	unsigned int size = 0;
 	char ttlc[11];
 	ostringstream typecode;
 
@@ -1030,7 +1046,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	}
 
 	// ttl
-	seconds = nfct_get_attr_u16(ct, ATTR_TIMEOUT);
+	seconds = nfct_get_attr_u32(ct, ATTR_TIMEOUT);
 	minutes = seconds/60;
 	hours = minutes/60;
 	minutes = minutes%60;
@@ -1044,9 +1060,9 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	entry.dst.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_DST);
 
 	// Counters
-	entry.bytes = nfct_get_attr_u16(ct, ATTR_ORIG_COUNTER_BYTES);
+	entry.bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES);
 	entry.packets = 
-		nfct_get_attr_u16(ct, ATTR_ORIG_COUNTER_PACKETS);
+		nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS);
 
 	if (digits(entry.bytes) > max->bytes) {
 		max->bytes = digits(entry.bytes);
@@ -1077,8 +1093,11 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	} else if (entry.proto == "icmp") {
 
 		typecode.str("");
-		typecode << nfct_get_attr_u16(ct, ATTR_ICMP_TYPE)
-			<< "/" << nfct_get_attr_u16(ct, ATTR_ICMP_CODE);
+		typecode << (int)nfct_get_attr_u8(ct, ATTR_ICMP_TYPE)
+			<< "/" << (int)nfct_get_attr_u8(ct, ATTR_ICMP_CODE)
+			<< " (" << nfct_get_attr_u16(ct, ATTR_ICMP_ID)
+			<< ")";
+
 
 		entry.state = typecode.str();
 		counts->icmp++;
@@ -1151,19 +1170,8 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	 */
 
 	// Resolve Names if we need to
-	if (flags->lookup) {
-		resolve(entry.src,entry.sname,size);
-
-		size += 1 + digits(entry.srcpt);
-		if (size > max->src)
-			max->src = size;
-
-		resolve(entry.dst,entry.dname,size);
-		
-		size += 1 + digits(entry.dstpt);
-		if (size > max->dst)
-			max->dst = size;
-	}
+	if (flags->lookup)
+		resolve_names(entry,*max);
 
 	/*
 	 * Add this to the array
@@ -1208,40 +1216,6 @@ void build_table(flags_t &flags, const filters_t &filters,
 	stable.clear();
 	counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped
 		= 0;
-
-#if 0
-	/*
-	 * For NO lookup:
-	 * src/dst IP can be no bigger than 21 chars:
-	 *    IP (max of 15) + colon (1) + port (max of 5) = 21
-	 *
-	 * For lookup:
-	 * if it's a name, we start with the width of the header, and we can
-	 * grow from there as needed.
-	 */
-	if (flags.lookup) {
-		max.src = 6;
-		max.dst = 11;
-	} else {
-		max.src = max.dst = 21;
-	}
-	/*
-	 * The proto header is 5, so we can't drop below 6.
-	 */
-	max.proto = 5;
-	/*
-	 * "ESTABLISHED" is generally the longest state, we almost always have
-	 * several, so we'll start with this. It also looks really bad if state
-	 * is changing size a lot, so we start with a common minumum.
-	 */
-	max.state = 11;
-	// TTL we statically make 7: xxx:xx:xx
-	max.ttl = 9;
-
-	// Some defaults
-	max.bytes = 2;
-	max.packets = 2;
-#endif
 
 	// Open the file
 	ifstream input(CONNTRACK);
@@ -1405,19 +1379,8 @@ void build_table(flags_t &flags, const filters_t &filters,
 		 */
 
 		// Resolve Names if we need to
-		if (flags.lookup) {
-			resolve(entry.src,entry.sname,size);
-
-			size += 1 + digits(entry.srcpt);
-			if (size > max.src)
-				max.src = size;
-
-			resolve(entry.dst,entry.dname,size);
-			
-			size += 1 + digits(entry.dstpt);
-			if (size > max.dst)
-				max.dst = size;
-		}
+		if (flags.lookup)
+			resolve_names(entry, max);
 
 		/*
 		 * Add this to the array
@@ -1715,7 +1678,8 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 	unsigned int left = ssize.x - max.ttl - max.state - max.proto
 				- 4;
 	if (flags.counters) {
-		//cerr << "left is " << left << " bytes is " << max.bytes << " packs is " << max.packets << endl;
+		//cerr << "left is " << left << " bytes is " << max.bytes
+		//	<< " packs is " << max.packets << endl;
 		left -= (max.bytes + max.packets + 2);
 	}
 
@@ -2251,14 +2215,14 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 
 	if (table.proto == "tcp" || table.proto == "udp") {
 		if (flags.lookup && (table.sname != "")) {
-			buffer << table.sname << ":" << table.srcpt;
+			buffer << table.sname << ":" << table.spname;
 		} else {
 			buffer << inet_ntoa(table.src) << ":" << table.srcpt;
 		}
 		src = buffer.str();
 		buffer.str("");
 		if (flags.lookup && (table.dname != "")) {
-			buffer << table.dname << ":" << table.dstpt;
+			buffer << table.dname << ":" << table.dpname;
 		} else {
 			buffer << inet_ntoa(table.dst) << ":" << table.dstpt;
 		}
@@ -2440,19 +2404,47 @@ void help()
 /*
  * Resolve hostnames
  */
-void resolve(const in_addr &ip, string &name, unsigned int &size)
+void resolve_names(table_t &entry, max_t &max)
 {
-	struct hostent* hostinfo = NULL;
+	unsigned int size = 0;
+
+	resolve_host(entry.src,entry.sname);
+	resolve_host(entry.dst,entry.dname);
+	resolve_port(entry.srcpt,entry.spname,entry.proto);
+	resolve_port(entry.dstpt,entry.dpname,entry.proto);
+
+	size = entry.sname.size() + entry.spname.size() + 1;
+	if (size > max.src)
+		max.src = size;
+
+	size = entry.dname.size() + entry.dpname.size() + 1;
+	if (size > max.dst)
+		max.dst = size;
+
+}
+void resolve_host(const in_addr &ip, string &name)
+{
+	struct hostent *hostinfo = NULL;
 
 	if ((hostinfo = gethostbyaddr((char *)&ip,sizeof(ip), AF_INET))
 			!= NULL) {
 		name = hostinfo->h_name;
-		size = name.size();
 	} else {
-		string str = inet_ntoa(ip);
-		size = str.size();
-		//this else is here for troubleshooting
-		//herror("gethostbyaddr");
+		name = inet_ntoa(ip);
+	}
+}
+
+void resolve_port(const int &port, string &name, const string &proto)
+{
+	struct servent *portinfo = NULL;
+
+	if ((portinfo = getservbyport(htons(port),proto.c_str())) != NULL) {
+		name = portinfo->s_name;
+	} else {
+		ostringstream buf;
+		buf.str("");
+		buf << port;
+		name = buf.str();
 	}
 }
 
@@ -2462,15 +2454,15 @@ void resolve(const in_addr &ip, string &name, unsigned int &size)
 void truncate(table_t &table, const max_t &max, const flags_t &flags)
 {
 	int length;
-	if (table.sname.size() + digits(table.srcpt) + 1 > max.src) {
-		length = max.src - 1 - digits(table.srcpt);
+	if (table.sname.size() + table.spname.size() + 1 > max.src) {
+		length = max.src - 1 - table.spname.size();
 		table.sname = table.sname.substr(0,length);
 		if (flags.tag_truncate)
 			table.sname[table.sname.size()-1] = '+';
 	}
 
-	if (table.dname.size() + digits(table.dstpt) + 1 > max.dst) {
-		length = max.dst - 1 - digits(table.dstpt);
+	if (table.dname.size() + table.dpname.size() + 1 > max.dst) {
+		length = max.dst - 1 - table.dpname.size();
 		table.dname = table.dname.substr(0,length);
 		if (flags.tag_truncate)
 			table.dname[0] = '+';
@@ -2932,11 +2924,13 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 	ct = nfct_new();
 	int ret;
 	string response;
+	string src = inet_ntoa(entry.src);
+	string dst = inet_ntoa(entry.dst);
 
 	ostringstream msg;
 	msg.str("");
-	msg << "Deleting state: " << inet_ntoa(entry.src) << ":" << entry.srcpt
-		<< " -> " << inet_ntoa(entry.dst) << ":" << entry.dstpt
+	msg << "Deleting state: " << src << ":" << entry.srcpt
+		<< " -> " << dst << ":" << entry.dstpt
 		<< " -- Are you sure? (y/n)";
 	get_input(win,response,msg.str(),flags);
 
@@ -2960,10 +2954,15 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST,
 			htons(entry.dstpt));
 	} else if (entry.proto == "icmp") {
-		string type, code;
-		split('/',entry.state,type,code);
-		nfct_set_attr_u16(ct, ATTR_ICMP_TYPE, atoi(type.c_str()));
-		nfct_set_attr_u16(ct, ATTR_ICMP_CODE, atoi(code.c_str()));
+		string type, code, id, tmp;
+		split('/',entry.state,type,tmp);
+		split(' ',tmp,code,tmp);
+		split('(',tmp,tmp,id);
+		split(')',id,id,tmp);
+
+		nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, atoi(type.c_str()));
+		nfct_set_attr_u8(ct, ATTR_ICMP_CODE, atoi(code.c_str()));
+		nfct_set_attr_u16(ct, ATTR_ICMP_ID, atoi(id.c_str()));
 	}
 
 	ret = nfct_query(cth, NFCT_Q_DESTROY, ct);
