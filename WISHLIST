@@ -6,6 +6,7 @@ Features coming soon:
 - Filtering hostnames
 - Inverse filtering
 - Display NAT'd IP
+- IPV6 support
 
 Features that may come later:
 - Secondary sorting
