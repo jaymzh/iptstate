@@ -13,12 +13,11 @@ have already applied to their SVN tree:
   http://www.phildev.net/linux/patches/libnetfilter_conntrack-0.0.50_icmp_id.patch
 You can use it if this affects you.
 
- - However, there seems to be a small memory leak somewhere in ncurses. See 
-http://www.phildev.net/iptstate/memleak.html for details.
-This won't effect most users much, but you want to be weary of leaving
-iptstate running on very busy firewalls for very long periods of time (a
-day or more). This bug has been reported to ncurses, see above URL.
-
+ - There seems to be a small memory leak somewhere in ncurses. See 
+  http://www.phildev.net/iptstate/memleak.html
+for details.  This won't effect most users much, but you want to be weary of
+leaving iptstate running on very busy firewalls for very long periods of time
+(a day or more). This bug has been reported to ncurses, see above URL.
 
 ABOUT BUGS
   If you find a bug in IPTState you should notify ME! You can contact me at

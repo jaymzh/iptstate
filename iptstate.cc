@@ -522,9 +522,15 @@ while(1) {
 		curr_state = stable.size()-1;
 	}
 
-	if (py > (stable.size()+hdrs+1)) {
-		py == stable.size()+hdrs+1;
-	}
+	/*
+	 * The bottom of the screen is stable.size()+hdrs+1
+	 *   (the +1 is so we can have a blank line at the end)
+	 * but we want to never have py be more than that - ssize.y
+	 * so we're showing a page full of states.
+	 */
+	unsigned int bottom = stable.size()+hdrs+1-ssize.y;
+	if (py > bottom)
+		py = bottom;
 
 	/*
 	 * Originally I strived to do this the "right" way by calling

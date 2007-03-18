@@ -112,15 +112,11 @@ IPTState Version 2.2.0
 	then you need to upgrade your glibc. This is an important
 	thing to keep up-to-date anyway.
 
-	If you get this warning:
-		iptstate.cc:526: warning: value computed is not used
-	you can safely ignore it - it's an erroneous error in gcc 4.1.
-
 	  Installing
 	IPTState installs in /usr/sbin. This is because it should
-	be a utility for the superuser. You need root access for
-	iptstate to get the data it needs anyway. Installing
-	should be as simple as 'make install' as root. If this
+	be a utility for the superuser. You need root access
+	(or CAP_NET_ADMIN) for iptstate to get the data it needs anyway.
+	Installing should be as simple as 'make install' as root. If this
 	fails, feel free to do:
 	 # cp iptstate /usr/sbin/iptstate
 	 # chmod 755 /usr/sbin/iptstate
