@@ -33,7 +33,7 @@ CPPFLAGS=
 all:	iptstate
 
 
-iptstate: iptstate.cc
+iptstate: iptstate.cc Makefile
 	@\
 	echo "+------------------------------------------------------------+" ;\
 	echo "| Welcome to IP Tables State by Phil Dibowitz                |" ;\

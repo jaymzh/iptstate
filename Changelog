@@ -3,14 +3,15 @@
   breaks ncurses if you try to make a pad that large.
 - Cleanup the time.h includes
 - Port to new libnetfilter_conntrack library
-- Add support for byte/packet counters
-- Add support for deleting states
+- Add support for byte/packet counters ('C' key)
+- Add support for deleting states ('x' key)
 - Move navigation help to top of interactive help so people can learn how
   to navigate without having to navigate to the bottom of the help
 - When --lookup is enabled, resolve port names as well ast hostnames
   (reported by Viliam Holub <holub@nenya.ms.mff.cuni.cz>)
 - Display the ICMP ID on ICMP states
 - Fix scrolling bug if totals or filters were enabled
+- General improvement of all scrolling calculations
 - Add 'B' as a way to sort by previous columbn (opposite of 'b')
 
 2.1

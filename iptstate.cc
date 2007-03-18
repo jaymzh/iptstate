@@ -60,11 +60,12 @@ extern "C" {
 	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 };
 #else
+	#warning "Compiling in backwards compatability proc mode. This is DEPRECATED and support for this will be removed in the future!"
 	#define CONNTRACK "/proc/net/ip_conntrack"
 #endif
 using namespace std;
 
-#define VERSION "2.2.0-dev"
+#define VERSION "2.2.0"
 /* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
@@ -528,8 +529,10 @@ while(1) {
 	 * but we want to never have py be more than that - ssize.y
 	 * so we're showing a page full of states.
 	 */
-	unsigned int bottom = stable.size()+hdrs+1-ssize.y;
-	if (py > bottom)
+	int bottom = stable.size()+hdrs+1-ssize.y;
+	if (bottom < 0)
+		bottom = 0;
+	if (py > (unsigned)bottom)
 		py = bottom;
 
 	/*
@@ -781,25 +784,19 @@ while(1) {
 				 */
 
 				/*
-				 * If the cursor is at the end of the state
-				 * table, we know we're done.
-				 */
-				if (curr_state >= stable.size()-1)
-					break;
-
-				/*
 				 * If we have room to scroll down AND if cur is
 				 * at the bottom of a page scroll down.
 				 */
-				if ((py + ssize.y < stable.size()+hdrs+1)
+				if ((py + ssize.y <= stable.size()+hdrs+1)
 				    && (curr_state+4 == py + ssize.y))
 						py++;
 
 				/*
-				 * In any case (other than the break above),
-				 * DOWN means the cursor moves down.
+				 * As long as the cursor isn't at the end,
+				 * move it down one.
 				 */
-				curr_state++;
+				if (curr_state < stable.size()-1)
+					curr_state++;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_UP:
@@ -2996,9 +2993,14 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 
 	ostringstream msg;
 	msg.str("");
-	msg << "Deleting state: " << src << ":" << entry.srcpt
-		<< " -> " << dst << ":" << entry.dstpt
-		<< " -- Are you sure? (y/n)";
+	msg << "Deleting state: ";
+	if (entry.proto == "tcp" || entry.proto == "udp") {
+		msg << src << ":" << entry.srcpt
+			<< " -> " << dst << ":" << entry.dstpt;
+	} else {
+		msg << src << " -> " << dst;
+	}
+	msg << " -- Are you sure? (y/n)";
 	get_input(win,response,msg.str(),flags);
 
 	if (response != "y" && response != "Y" && response != "yes" &&

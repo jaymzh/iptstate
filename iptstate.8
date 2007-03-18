@@ -102,15 +102,11 @@ Only show states with a source port of \fIport\fP
 .TP
 .B -t, --totals
 Toggle display of totals
-.TP
-.B space
-Immediately update the display.
-.TP
-.B ctrl-L
-Immediately re-draw the display. IPTState should gracefully handle all window resizes, but if it doesn't, you can force it to re-calculate and re-draw the screen with a ctrl-L.
 
 .SH INTERACTIVE OPTIONS
-As of version 2.0, all command-line options are now available interactively using the same key as the short-option. For example, \fB--sort\fP is also \fB-b\fP, so while \fBiptstate\fP is running, hitting \fBb\fP will change the sorting to the next column (and \fBB\fP will change it to the previous). Similarly, \fBt\fP toggles the display of totals, and so on.
+As of version 2.0, all command-line options are now available interactively using the same key as the short-option. For example, \fB--sort\fP is also \fB-b\fP, so while \fBiptstate\fP is running, hitting \fBb\fP will change the sorting to the next column. Similarly, \fBt\fP toggles the display of totals, and so on.
+.PP
+There are also extra interactive options: \fBB\fP - change sorting to previous column (opposite of \fBb\fP); \fBq\fP - quit; and \fBx\fP - delete the currently highlighted state from the netfilter conntrack table.
 .PP
 In many cases, \fBiptstate\fP needs to prompt you in order to change something. For example, if you want to set or change the source-ip filter, when you hit \fBs\fP, \fBiptstate\fP will pop up a prompt at the top of the window to ask you what you want to set it to.
 .PP
@@ -121,13 +117,11 @@ In most cases, a blank response means "clear" - clear the source IP filter, for 
 At anytime while \fBiptstate\fP is running, you can hit \fBh\fP to get to the \fBinteractive help\fP which will display all the current settings to you as well give you a list of all interactive commands available.
 .PP
 While running, \fBspace\fP will immediately update the display. \fBIptstate\fP should gracefully handle all window resizes, but if it doesn't, you can force it to re-calculate and re-draw the screen with a \fBctrl-L\fP.
-.PP
-Note that this is not a complete list of options - see the interactive help inside of \fBiptstate\fP by hitting \fBh\fP.
 
 .SH SCROLLING AND PADS
 For almost any user, there is no reason to turn off scrolling. The ability to turn this off - and especially the ability to toggle this interactively - is done more for theoretical completeness than anything else.
 .TP
-But, nonetheless, here's the details. Typically in a curses application you create a "window." Windows don't scroll, however. They are the size of your terminal. Windows provide double-buffering to make refreshing as fast and seemless as possible. However, to enable scrolling, one has to use "pads" instead of windows. Pads can be bigger than the current terminal. Then all necessary data is written to the pad, and "scrolling" becomes a function of just showing the right part of that pad on the screen.
+But, nonetheless, here are the details. Typically in a curses application you create a "window." Windows don't scroll, however. They are, at most, the size of your terminal. Windows provide double-buffering to make refreshing as fast and seemless as possible. However, to enable scrolling, one has to use "pads" instead of windows. Pads can be bigger than the current terminal. Then all necessary data is written to the pad, and "scrolling" becomes a function of just showing the right part of that pad on the screen.
 .TP
 However, pads do not have the double-buffering feature that windows have. Thus, there _might_ be some case where for some user using some very strange machine, having scrolling enabled could cause poor refreshing. Given the nature of the way \fBiptstate\fP uses the screen though, I find this highly unlikely. In addition, the scrolling method uses a little more memory. However, \fBiptstate\fP is not a memory intensive application, so this shouldn't be a problem even on low-memory systems.
 .TP
