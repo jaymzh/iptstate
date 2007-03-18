@@ -1,6 +1,6 @@
   IP Tables State (iptstate)
 
-  Copyright (C) 2002 - 2006 Phil Dibowitz
+  Copyright (C) 2002 - 2007 Phil Dibowitz
 
   This software is provided 'as-is', without any express or
   implied warranty. In no event will the authors be held
@@ -24,10 +24,10 @@
   -----------------------------------
 
 NOTE: If you are planning on packaging and/or submitting my
-software for/to a Linux Distribution, EMAIL ME FIRST!!!
+software for/to a Linux Distribution, EMAIL ME FIRST!!! See CONTRIB.
 
 
-IPTState Version 2.1
+IPTState Version 2.2.0
 
 
 1. WHAT IS IP TABLES STATE?
@@ -59,6 +59,13 @@ IPTState Version 2.1
   this is probably ncurses). Note that if you are using vendor packages
   you will most likely need the packaged with '-dev' on the end of of
   it (i.e. ncurses-dev).
+
+  Starting with version 2.2.0 you also need libnetfilter_conntrack version
+  0.0.50 or later. If you do not have libnetfilter_conntrack you can compile
+  iptstate to use /proc/net/ip_conntrack (what it did prior to 2.2.0) instead.
+  To do this, modify the Makefile and switch the LIBS and CPPFLAGS lines with
+  the commented-out ones. Note that this backwards compatibility is temporary
+  and will be removed in future versions.
 
 
 3. INSTALLATION
@@ -107,15 +114,15 @@ IPTState Version 2.1
 
 	  Installing
 	IPTState installs in /usr/sbin. This is because it should
-	be a utility for the superuser. In recent versions of
-	iptables, /proc/net/ip_conntrack is only readable by root
-	anyway. Installing should be as simple as 'make 
-	install.' If this fails, feel free to do:
+	be a utility for the superuser. You need root access for
+	iptstate to get the data it needs anyway. Installing
+	should be as simple as 'make install' as root. If this
+	fails, feel free to do:
 	 # cp iptstate /usr/sbin/iptstate
 	 # chmod 755 /usr/sbin/iptstate
 	 # chown root:bin /usr/sbin/iptstate
-	 # cp man/man1/iptstate.8 /usr/share/man/man1/iptstate.8
-	 # chmod 444 /usr/share/man/man1/iptstate.1
+	 # cp iptstate.8 /usr/share/man/man8/iptstate.8
+	 # chmod 444 /usr/share/man/man1/iptstate.8
 	And that should do it. If 'make install' fails feel free
 	to drop me an email provided you put "IPTSTATE:" in the 
 	subject. Please see the BUGS file on how to send proper
@@ -125,17 +132,17 @@ IPTState Version 2.1
 4. USAGE
 
   IPTables State is extremely simple to use. Most of the time
-  what you'll want is just 'iptstate.' This will launch you into
-  the 'statetop' mode. In here, your state table is being sorted
-  by Source IP. To change the sorting, on the fly, type 'b.' This
-  will rotate through the various sorting possibilities. You can
-  quit by typing 'q.' You can also change the sorting with the -b
-  ("sort BY") option. The -b option takes d (Destination IP), D
-  (Destination Port), S (Source IP), p (protocol), s (state) and
-  t (TTL) as it's possible options. To sort by Source IP, just
-  don't specify -b.
+  what you'll want is just the command 'iptstate' as root. This
+  will launch you into the 'statetop' mode. In here, your state
+  table is being sorted by Source IP. To change the sorting, on
+  the fly, type 'b.' This will rotate through the various sorting
+  possibilities. You can quit by typing 'q.' You can also change
+  the sorting with the -b ("sort BY") option. The -b option takes
+  d (Destination IP), D (Destination Port), S (Source IP), p
+  (protocol), s (state), and t (TTL) as it's possible options.
+  To sort by Source IP, just don't specify -b.
 
-  You can also change the refresh rate of the statetop by -r 
+  You can also change the refresh rate of the statetop by -R 
   followed by an integer. The integer represents the refresh rate
   in seconds.
 
@@ -143,7 +150,7 @@ IPTState Version 2.1
   with the '--help' option.
 
   To get a quick look at what's going across your firewall, try 
-  iptstate -s. This is "single run" mode. It will just print out
+  iptstate -1. This is "single run" mode. It will just print out
   your state table at the moment you requested it. This is where
   -b comes in handy. Again, the default sort is by Source IP.
 
@@ -179,5 +186,5 @@ IPTState Version 2.1
 
 
 Phil Dibowitz
-phil@ipom.com
+phil AT ipom DOT com
 

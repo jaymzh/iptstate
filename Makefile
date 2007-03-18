@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2002 - 2006 Phil Dibowitz.
+# Copyright (C) 2002 - 2007 Phil Dibowitz.
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 2.1
+# Makefile for IPTState verion 2.2.0
 #
 
 ### USERS CAN CHANGE STUFF HERE
@@ -19,15 +19,21 @@ MAN?=$(PREFIX)/share/man
 CXX?= g++
 CXXFLAGS?= -g -Wall -O2
 CXXFILES?= iptstate.cc
+
+# THIS IS FOR NORMAL COMPILATION
 LIBS?= -lncurses -lnetfilter_conntrack
-OLDLIBS?= -lncurses
+CPPFLAGS=
+# IF YOU WANT TO NOT USE libnetfilter_conntrack, comment out the above
+# two lines and uncomment these
+#LIBS?= -lncurses
+#CPPFLAGS= -DIPTSTATE_USE_PROC
 
 ### YOU SHOULDN'T NEED TO CHANGE ANYTHING BELOW THIS
 
 all:	iptstate
 
 
-.make.welcome:
+iptstate: iptstate.cc
 	@\
 	echo "+------------------------------------------------------------+" ;\
 	echo "| Welcome to IP Tables State by Phil Dibowitz                |" ;\
@@ -43,29 +49,8 @@ all:	iptstate
 	echo "+------------------------------------------------------------+" ;\
 	echo "";
 
-	@touch .make.welcome
-
-iptstate:	.make.welcome iptstate.cc
-
-	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS)
+	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS) $(CPPFLAGS)
 	@touch iptstate
-
-	@\
-	echo "" ;\
-	echo "All done. Do 'make install' as root and you should be set to go!" ;\
-	echo ""
-
-iptstate_proc: .make.iptstate_proc
-
-.make.iptstate_proc: welcome iptstate.cc
-	@\
-	echo "WARNING: You are compiling iptstate to use the /proc interface" ;\
-	echo "	to netfilter. This is deprecated and will be removed from" ;\
-	echo "	later versions of the code!" ;\
-	echo ""
-
-	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(OLDLIBS) -DIPTSTATE_USE_PROC
-	@touch .make.iptstate_proc
 
 	@\
 	echo "" ;\
@@ -74,7 +59,7 @@ iptstate_proc: .make.iptstate_proc
 
 strip:	iptstate
 	$(STRIP) iptstate
-	@touch .strip
+	@touch strip
 
 
 install:

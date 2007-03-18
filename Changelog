@@ -1,4 +1,4 @@
-2.2-dev
+2.2.0-dev
 - Added some logic to handle state tables larger than 32767 entries which
   breaks ncurses if you try to make a pad that large.
 - Cleanup the time.h includes
@@ -11,6 +11,7 @@
   (reported by Viliam Holub <holub@nenya.ms.mff.cuni.cz>)
 - Display the ICMP ID on ICMP states
 - Fix scrolling bug if totals or filters were enabled
+- Add 'B' as a way to sort by previous columbn (opposite of 'b')
 
 2.1
 - Released 10/05/06

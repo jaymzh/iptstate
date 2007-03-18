@@ -3,9 +3,17 @@ IPTState Bugs
 KNOWN BUGS
 None*
 
+* There are no known bugs in the iptstate code at the time of this writing.
+However, there are bugs in other pieces of software that may affect your
+iptstate experience:
 
-* There are no known bugs in the iptstate code. However, there IS a small
-bug somewhere in ncurses. See 
+ - libnetfilter_conntrack 0.0.50 has a bug that prevents iptstate from
+deleting ICMP states. I wrote the following patch which the netfilter folks
+have already applied to their SVN tree:
+  http://www.phildev.net/linux/patches/libnetfilter_conntrack-0.0.50_icmp_id.patch
+You can use it if this affects you.
+
+ - However, there seems to be a small memory leak somewhere in ncurses. See 
 http://www.phildev.net/iptstate/memleak.html for details.
 This won't effect most users much, but you want to be weary of leaving
 iptstate running on very busy firewalls for very long periods of time (a
@@ -14,7 +22,7 @@ day or more). This bug has been reported to ncurses, see above URL.
 
 ABOUT BUGS
   If you find a bug in IPTState you should notify ME! You can contact me at
-phil@ipom.com. Sending a bug to your distro or some public forum is not
+phil AT ipom DOT com. Sending a bug to your distro or some public forum is not
 going to let me know. I can't fix things I don't know about. So please email
 ME.
 
@@ -25,29 +33,22 @@ attention. If it's a very minor bug, or a feature request, I will
 acknowledge your email, but I may not fix/implement it immediately.
 
 ABOUT PATCHES
-  I do accept patches - I just don't usually use them. So you ask, 'so why
-should I write one?' Patches are great because they often give me the 
-core of the answer right away. However, I'm particularly anal about my
-code and so I like everything to be in my style, and since iptstate is small
-enough for me to do things by hand, I do. I've only received a handful of
-patches, most fixes come in the form of "change this in this way," and as
-such I've never applied an external patch. I've used a few as reference
-though. Feel free to submit a bug report with or without a patch if you want.
-
-  PATCHES SHOULD BE ACCOMPANIED BY EXPLINATIONS AND/OR BUG REPORTS! Let me
-know what you were trying to fix/add and how you did it. This will save
-me a lot of time, and I'll like you more.
+  Patches are not necessary, but if you submit one remember: PATCHES SHOULD
+BE ACCOMPANIED BY EXPLINATIONS AND/OR BUG REPORTS! Let me know what you were
+trying to fix/add and how you did it. This will save me a lot of time, and
+I'll like you more.
 
 ABOUT BUG REPORTS
   If you send me a bug report you MUST do the following:
 - Include "IPTSTATE" in the subject
 - Include your iptstate version
-- Include your distribution and distro version
+- Include your distribution and distribution version
 - Include your kernel version
-- Include your gcc version
+- Include your g++ version
 - Include your make version
 - Include your glibc version
 - Include your ncurses version
+- Include your libnetfilter_conntrack version
 - Include any relevant output and/or errors
 
   Bug reports should be sent to *ME*. I cannot fix your bugs if you don't
@@ -56,5 +57,5 @@ tell *ME* about them. That's right, send your bug reports to *ME*.
 Thanks!
 
 Phil Dibowitz
-phil@ipom.com
+phil AT ipom DOT com
 

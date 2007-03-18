@@ -1,5 +1,5 @@
 %define name iptstate
-%define version	2.1
+%define version	2.2.0
 %define release 1
 
 Name: %{name}
@@ -11,7 +11,7 @@ License: zlib License
 Source: http://www.phildev.net/iptstate/%{name}-%{version}.tar.gz
 URL: http://www.phildev.net/iptstate/
 BuildRoot: %{_tmppath}/%{name}-buildroot
-BuildRequires: libncurses.so.5
+BuildRequires: libncurses.so.5 libnetfilter_conntrack.so.1
 
 %description
  IP Tables State (iptstate) was originally written to

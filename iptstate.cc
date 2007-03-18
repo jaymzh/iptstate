@@ -58,15 +58,13 @@
 #ifndef IPTSTATE_USE_PROC
 extern "C" {
 	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-	#include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
-	#include <libnetfilter_conntrack/libnetfilter_conntrack_icmp.h>
 };
 #else
 	#define CONNTRACK "/proc/net/ip_conntrack"
 #endif
 using namespace std;
 
-#define VERSION "2.2-dev"
+#define VERSION "2.2.0-dev"
 /* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
@@ -104,10 +102,15 @@ using namespace std;
 #define SORT_PROTO 4
 #define SORT_STATE 5
 #define SORT_TTL 6
-// This should ALWAYS the same as the above.
-#define SORT_MAX 6
-
-#define NFCT_DIR NFCT_DIR_ORIGINAL
+#ifndef IPTSTATE_USE_PROC
+  #define SORT_BYTES 7
+  #define SORT_PACKETS 8
+  // This should ALWAYS the same as the above.
+  #define SORT_MAX 8
+#else
+  // This should ALWAYS the same as the above.
+  #define SORT_MAX 6
+#endif
 
 /*
  * GLOBAL CONSTANTS
@@ -227,6 +230,8 @@ int state_sort(const void *a, const void *b);
 int ttl_sort(const void *a, const void *b);
 int sname_sort(const void *a, const void *b);
 int dname_sort(const void *a, const void *b);
+int bytes_sort(const void *a, const void *b);
+int packets_sort(const void *a, const void *b);
 
 // Curses helper functionsr
 static WINDOW* start_curses(flags_t &flags);
@@ -416,6 +421,12 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 				sortby=SORT_STATE;
 			else if (*optarg == 't')
 				sortby=SORT_TTL;
+#ifndef IPTSTATE_USE_PROC
+			else if (*optarg == 'b')
+				sortby=SORT_BYTES;
+			else if (*optarg == 'P')
+				sortby=SORT_PACKETS;
+#endif
 			break;
 		// --single
 		case '1':
@@ -628,6 +639,12 @@ while(1) {
 					sortby++;
 				else
 					sortby=0;
+				break;
+			case 'B':
+				if (sortby > 0)
+					sortby--;
+				else
+					sortby=SORT_MAX;
 				break;
 			case 't':
 				flags.totals = !flags.totals;
@@ -1193,7 +1210,6 @@ void build_table(flags_t &flags, const filters_t &filters,
 
 	// Temporary strings for holding/formatting/etc.
 	string line, mins, secs, hrs, tmpstring;
-	unsigned int size;
 	/*
 	 * These are ascii representations of various fields we parse in
 	 * before they get converted to in_addr/int/etc.
@@ -1451,9 +1467,24 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 			break;
 
 		case SORT_TTL:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),ttl_sort);
+			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+					ttl_sort);
 			sorting = "TTL";
 			break;
+
+#ifndef IPTSTATE_USE_PROC
+		case SORT_BYTES:
+			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+					bytes_sort);
+			sorting = "Bytes";
+			break;
+
+		case SORT_PACKETS:
+			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+					packets_sort);
+			sorting = "Packets";
+			break;
+#endif
 
 		default:
 			//we should never get here
@@ -1809,9 +1840,9 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	 * If the screen is bigger than this, we deal with it below.
 	 */
 #ifndef IPTSTATE_USE_PROC
-	unsigned int maxrows = 39;
+	unsigned int maxrows = 41;
 #else
-	unsigned int maxrows = 37;
+	unsigned int maxrows = 39;
 #endif
 	unsigned int maxcols = 80;
 
@@ -1934,6 +1965,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	waddstr(helpwin,(flags.totals) ? "yes" : "no");
 	wattroff(helpwin,A_BOLD);
 
+	mvwaddstr(helpwin,y++,x,"  Display counters: ");
+	wattron(helpwin,A_BOLD);
+	waddstr(helpwin,(flags.counters) ? "yes" : "no");
+	wattroff(helpwin,A_BOLD);
+
 	if (flags.filter_src) {
 		mvwaddstr(helpwin,y++,x,"  Source filter: ");
 		wattron(helpwin,A_BOLD);
@@ -1982,6 +2018,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	waddstr(helpwin,"\tSort by next column");
 
 	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  B");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,"\tSort by previous column");
+
+	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  d");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tChange destination filter");
@@ -1990,11 +2031,6 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	mvwaddstr(helpwin,y++,x,"  D");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tChange destination port filter");
-
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  o");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle dynamic or old formatting");
 
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  f");
@@ -2020,6 +2056,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	mvwaddstr(helpwin,y++,x,"  m");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tToggle marking truncated hostnames with a '+'");
+
+	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  o");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,"\tToggle dynamic or old formatting");
 
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  p");
@@ -2547,6 +2588,26 @@ int dname_sort(const void *a, const void *b)
 	}
 	return -sort_factor;
 }
+#ifndef IPTSTATE_USE_PROC
+int bytes_sort(const void *a, const void *b)
+{
+	if(((table_t *)a)->bytes == ((table_t *)b)->bytes) {
+		return 0;
+	} else if (((table_t *)a)->bytes > ((table_t *)b)->bytes) {
+		return sort_factor;
+	}
+	return -sort_factor;
+}
+int packets_sort(const void *a, const void *b)
+{
+	if(((table_t *)a)->packets == ((table_t *)b)->packets) {
+		return 0;
+	} else if (((table_t *)a)->packets > ((table_t *)b)->packets) {
+		return sort_factor;
+	}
+	return -sort_factor;
+}
+#endif
 
 /*
  * Start-up for curses environment

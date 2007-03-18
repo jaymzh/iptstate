@@ -1,9 +1,9 @@
 .\" Process this file with
-.\" groff -man -Tascii iptstate.1
+.\" groff -man -Tascii iptstate.8
 .\"
 .TH IPTSTATE 8 "MARCH 2007" "" ""
 .\"
-.\" Man page written by Phil Dibowitz <phil@ipom.com>
+.\" Man page written by Phil Dibowitz <phil AT ipom DOT com>
 .\"
 .\" IPTState is copyright by Phil Dibowitz. Please see the README and LICENSE.
 .\"
@@ -86,7 +86,13 @@ State
 .B "	t"
 TTL
 .br
-To sort by Source IP (or Name), don't use -b
+.B "	b"
+Bytes
+.br
+.B "	P"
+Packets
+.br
+To sort by Source IP (or Name), don't use -b. Sorting by bytes/packets is only available for kernels that support it, and only when compiled against libnetfilter_conntrack (the default).
 .TP
 .B -s, --src-filter \fIIP\fP
 Only show states with a source of \fIIP\fP. Note, that this must be an IP, hostname matching is not yet supported.
@@ -104,15 +110,19 @@ Immediately update the display.
 Immediately re-draw the display. IPTState should gracefully handle all window resizes, but if it doesn't, you can force it to re-calculate and re-draw the screen with a ctrl-L.
 
 .SH INTERACTIVE OPTIONS
-As of version 2.0, all command-line options are now available interactively using the same key as the short-option. For example, \fB--sort\fP is also \fB-b\fP, so while \fBiptstate\fP is running, hitting \fBb\fP will change the sorting. Similarly, \fBt\fP toggles the display of totals, and so on.
+As of version 2.0, all command-line options are now available interactively using the same key as the short-option. For example, \fB--sort\fP is also \fB-b\fP, so while \fBiptstate\fP is running, hitting \fBb\fP will change the sorting to the next column (and \fBB\fP will change it to the previous). Similarly, \fBt\fP toggles the display of totals, and so on.
 .PP
 In many cases, \fBiptstate\fP needs to prompt you in order to change something. For example, if you want to set or change the source-ip filter, when you hit \fBs\fP, \fBiptstate\fP will pop up a prompt at the top of the window to ask you what you want to set it to.
 .PP
-Note that like many UNIX applications, ctrl-G will tell \fBiptstae\fP "nevermind" - it'll remove the prompt and forget you ever hit \fBs\fP.
+Note that like many UNIX applications, ctrl-G will tell \fBiptstate\fP "nevermind" - it'll remove the prompt and forget you ever hit \fBs\fP.
 .PP
 In most cases, a blank response means "clear" - clear the source IP filter, for example.
 .PP
 At anytime while \fBiptstate\fP is running, you can hit \fBh\fP to get to the \fBinteractive help\fP which will display all the current settings to you as well give you a list of all interactive commands available.
+.PP
+While running, \fBspace\fP will immediately update the display. \fBIptstate\fP should gracefully handle all window resizes, but if it doesn't, you can force it to re-calculate and re-draw the screen with a \fBctrl-L\fP.
+.PP
+Note that this is not a complete list of options - see the interactive help inside of \fBiptstate\fP by hitting \fBh\fP.
 
 .SH SCROLLING AND PADS
 For almost any user, there is no reason to turn off scrolling. The ability to turn this off - and especially the ability to toggle this interactively - is done more for theoretical completeness than anything else.
@@ -133,7 +143,7 @@ Success
 Bad command-line arguments
 .TP
 .B 2
-Couldn't open ip_conntrack
+Error communicating with the netfilter subsystem.
 .TP
 .B 3
 Terminal too narrow
@@ -142,20 +152,20 @@ Terminal too narrow
 There are no known bugs at this time.
 
 .SH BUG REPORTS
-All bugs should be reported to Phil Dibowitz <phil@ipom.com>, \fBNOT\fR your local distribution bug list. Please see the \fBREADME\fR and \fBBUGS\fR for more information on bug reports. Please read the \fBWISHLIST\fR before sending in features you hope to see.  
+All bugs should be reported to Phil Dibowitz <phil AT ipom DOT com>. Please see the \fBREADME\fR and \fBBUGS\fR for more information on bug reports. Please read the \fBWISHLIST\fR before sending in features you hope to see.  
 
 .SH NOTES
 \fBiptstate\fP does a lot of work to try to fit everything on the screen in an easy-to-read way. However, in some cases, hostnames may need to be truncated in lookup mode. The truncation of names in lookup mode happens from the right for source because you most likely know your own domain name, and from the left for destination because knowing your users are connection to "mail.a." doesn't help much.
 .PP
-\fBiptstate\fP does not handle automatically handle window-resizes while in the \fBinteractive help\fP screen. If you do resize while in this window, you should return to the main window, hit \fBctrl-L\fP to re-calculate and re-draw the screen, and then, if you choose, return to the \fBinteractive help\fP.
+\fBiptstate\fP does not automatically handle window-resizes while in the \fBinteractive help\fP screen. If you do resize while in this window, you should return to the main window, hit \fBctrl-L\fP to re-calculate and re-draw the screen, and then, if you choose, return to the \fBinteractive help\fP.
 .PP
-\fBiptstate\fP currently uses libnetfilter_conntrack to access the netfilter state table. However, older versions read out of /proc/net/ip_conntrack, and the current version can still be compiled to do this. Doing this can be be racy on SMP systems, and can hurt performance on very heavily loaded firewalls. This deprecated method should be avoided - support will be removed in future versions.
+\fBiptstate\fP currently uses libnetfilter_conntrack to access the netfilter connection state table. However, older versions read out of /proc/net/ip_conntrack, and the current version can still be compiled to do this. This deprecated method can be be racy on SMP systems, and can hurt performance on very heavily loaded firewalls. This deprecated method should be avoided - support will be removed in future versions.
 
 .SH SEE ALSO
 .BR iptables (8)
 .PP
 
 .SH AUTHOR
-\fBiptstate\fP was written by Phil Dibowitz <phil@ipom.com>
+\fBiptstate\fP was written by Phil Dibowitz <phil AT ipom DOT com>
 .br
 http://www.phildev.net/iptstate/
