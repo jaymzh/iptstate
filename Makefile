@@ -3,7 +3,7 @@
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 2.2.0
+# Makefile for IPTState
 #
 
 ### USERS CAN CHANGE STUFF HERE

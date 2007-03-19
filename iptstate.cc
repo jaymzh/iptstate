@@ -65,7 +65,7 @@ extern "C" {
 #endif
 using namespace std;
 
-#define VERSION "2.2.0"
+#define VERSION "2.2.1"
 /* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
