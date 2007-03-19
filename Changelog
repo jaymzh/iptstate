@@ -1,4 +1,5 @@
-2.2.0-dev
+2.2.0
+- Released 03/18/07
 - Added some logic to handle state tables larger than 32767 entries which
   breaks ncurses if you try to make a pad that large.
 - Cleanup the time.h includes
