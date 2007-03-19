@@ -481,9 +481,6 @@ if (!flags.single) {
 	keypad(mainwin,true);
 }
 
-// Initialize the max-size structure
-initialize_maxes(max, flags);
-
 /*
  * We want to keep going until the user stops us 
  * unless they use single run mode
@@ -513,6 +510,9 @@ while(1) {
 	    || flags.filter_dstpt) {
 		hdrs++;
 	}
+
+	// clear maxes
+	initialize_maxes(max, flags);
 
 	// Build our table
 	build_table(flags,filters,stable,counts,max);
