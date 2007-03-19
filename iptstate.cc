@@ -427,6 +427,8 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 				sortby=SORT_BYTES;
 			else if (*optarg == 'P')
 				sortby=SORT_PACKETS;
+			if (!flags.counters)
+				sortby=SORT_SRC;
 #endif
 			break;
 		// --single
@@ -617,6 +619,8 @@ while(1) {
 #ifndef IPTSTATE_USE_PROC
 			case 'C':
 				flags.counters = !flags.counters;
+				if (sortby >= SORT_BYTES)
+					sortby = SORT_BYTES-1;
 				break;
 #endif
 			case 'h':
@@ -644,16 +648,30 @@ while(1) {
 				sort_factor = -sort_factor;
 				break;
 			case 'b':
-				if (sortby < SORT_MAX)
+				if (sortby < SORT_MAX) {
 					sortby++;
-				else
-					sortby=0;
+#ifndef IPTSTATE_USE_PROC
+					if (!flags.counters
+					    && sortby >= SORT_BYTES)
+						sortby = 0;
+#endif
+				} else {
+					sortby = 0;
+				}
 				break;
 			case 'B':
-				if (sortby > 0)
+				if (sortby > 0) {
 					sortby--;
-				else
+				} else {
+#ifndef IPTSTATE_USE_PROC
+					if (flags.counters)
+						sortby=SORT_MAX;
+					else
+						sortby=SORT_BYTES-1;
+#else
 					sortby=SORT_MAX;
+#endif
+				}
 				break;
 			case 't':
 				flags.totals = !flags.totals;
@@ -843,15 +861,18 @@ while(1) {
 					curr_state--;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			// 4 is ^d
+			case 4:
 			case KEY_NPAGE:
 			case KEY_SNEXT:
 				if (flags.noscroll)
 					break;
 				/*
 				 * If the screen is bigger than the text,
-				 * ignore.
+				 * and the cursor is at the bottom, ignore.
 				 */
-				if (stable.size()+hdrs+1 < ssize.y)
+				if (stable.size()+hdrs+1 < ssize.y
+				    && curr_state == stable.size())
 					break;
 
 				/*
@@ -883,6 +904,8 @@ while(1) {
 				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			// 21 is ^u
+			case 21:
 			case KEY_PPAGE:
 			case KEY_SPREVIOUS:
 				if (flags.noscroll)
@@ -1913,10 +1936,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	// border
 	x++;
 
+	string nav = "Up/j, Down/k, Left/h, Right/l, PageUp/^u, PageDown/^d,";
+	nav += " Home, or End";
 	// Print instructions first
 	mvwaddstr(helpwin,y++,x,"Navigation:");
-	mvwaddstr(helpwin,y++,x,
-		"  Up/j, Down/k, Left/h, Right/l, Home, or End to navigate");
+	mvwaddstr(helpwin,y++,x,nav.c_str());
 	mvwaddstr(helpwin,y++,x,"  Press any other key to continue...");
 	y++;
 
@@ -2180,6 +2204,7 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				py = y-ssize.y;
 				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			case 4:
 			case KEY_NPAGE:
 			case KEY_SNEXT:
 				if (flags.noscroll)
@@ -2208,6 +2233,7 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				}
 				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			case 21:
 			case KEY_PPAGE:
 			case KEY_SPREVIOUS:
 				if (flags.noscroll)
@@ -2401,8 +2427,8 @@ void help()
 #endif
 	cout << "  -d, --dst-filter <IP>\n";
 	cout << "	Only show states with a destination of <IP>\n";
-	cout << "	Note, that this must be an IP, hostname matching is "
-		<< "not yet supported.\n\n";
+	cout << "	Note, that this must be an IP, hostname matching is"
+		<< " not yet supported.\n\n";
 	cout << "  -D --dstpt-filter <port>\n";
 	cout << "	Only show states with a destination port of <port>\n\n";
 	cout << "  -h, --help\n";
@@ -2432,16 +2458,22 @@ void help()
 	cout << "	   p: Protocol\n";
 	cout << "	   s: State\n";
 	cout << "	   t: TTL\n";
-	cout << "	To sort by Source IP (or Name), don't use -b\n\n";
+	cout << "	   b: Bytes\n";
+	cout << "	   P: Packets\n";
+	cout << "	To sort by Source IP (or Name), don't use -b.\n";
+	cout << "	Note that bytes/packets are only available when"
+		<< " supported in the kernel,\n";
+	cout << "	and enabled with -C\n\n";
 	cout << "  -s, --src-filter <IP>\n";
 	cout << "	Only show states with a source of <IP>\n";
-	cout << "	Note, that this must be an IP, hostname matching is "
-		<< "not yet supported.\n\n";
+	cout << "	Note, that this must be an IP, hostname matching is"
+		<< " not yet supported.\n\n";
 	cout << "  -S, --srcpt-filter <port>\n";
 	cout << "	Only show states with a source port of <port>\n\n";
 	cout << "  -t, --totals\n";
 	cout << "	Toggle display of totals\n\n";
-	cout << "See man iptstate(8) for more information.\n";
+	cout << "See man iptstate(8) or the interactive help for more"
+		<< " information.\n";
 	exit(0);
 }
 

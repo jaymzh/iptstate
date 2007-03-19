@@ -108,6 +108,24 @@ As of version 2.0, all command-line options are now available interactively usin
 .PP
 There are also extra interactive options: \fBB\fP - change sorting to previous column (opposite of \fBb\fP); \fBq\fP - quit; and \fBx\fP - delete the currently highlighted state from the netfilter conntrack table.
 .PP
+Additionally, the following keys are used to navigate within \fBiptstate\fP:
+.TP
+\fBUp\fP or \fBj\fP - Move up one line
+.TP
+\fBDown\fP or \fBk\fP - Move down one line
+.TP
+\fBLeft\fP or \fBh\fP - Move left one column
+.TP
+\fBRight\fP or \fBl\fP - Move right one column
+.TP
+\fBPageUp\fP or \fB^u\fP - Move up one page
+.TP
+\fBPageDown\fP or \fB^d\fP - Move down one page
+.TP
+\fBHome\fP - Go to the top
+.TP
+\fBEnd\fP - Go to the end
+.PP
 In many cases, \fBiptstate\fP needs to prompt you in order to change something. For example, if you want to set or change the source-ip filter, when you hit \fBs\fP, \fBiptstate\fP will pop up a prompt at the top of the window to ask you what you want to set it to.
 .PP
 Note that like many UNIX applications, ctrl-G will tell \fBiptstate\fP "nevermind" - it'll remove the prompt and forget you ever hit \fBs\fP.

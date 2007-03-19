@@ -14,6 +14,7 @@
 - Fix scrolling bug if totals or filters were enabled
 - General improvement of all scrolling calculations
 - Add 'B' as a way to sort by previous columbn (opposite of 'b')
+- Add ^d for pagedown and ^u for pageup
 
 2.1
 - Released 10/05/06
