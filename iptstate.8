@@ -171,7 +171,7 @@ All bugs should be reported to Phil Dibowitz <phil AT ipom DOT com>. Please see 
 .PP
 \fBiptstate\fP does not automatically handle window-resizes while in the \fBinteractive help\fP screen. If you do resize while in this window, you should return to the main window, hit \fBctrl-L\fP to re-calculate and re-draw the screen, and then, if you choose, return to the \fBinteractive help\fP.
 .PP
-\fBiptstate\fP currently uses libnetfilter_conntrack to access the netfilter connection state table. However, older versions read out of /proc/net/ip_conntrack, and the current version can still be compiled to do this. This deprecated method can be be racy on SMP systems, and can hurt performance on very heavily loaded firewalls. This deprecated method should be avoided - support will be removed in future versions.
+\fBiptstate\fP currently uses libnetfilter_conntrack to access the netfilter connection state table. However, older versions read out of /proc/net/ip_conntrack, and the current version can still be compiled to do this. This deprecated method can be racy on SMP systems, and can hurt performance on very heavily loaded firewalls. This deprecated method should be avoided - support will be removed in future versions.
 
 .SH SEE ALSO
 .BR iptables (8)
