@@ -195,6 +195,10 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags);
 #endif
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		vector<table_t> &stable, string &sorting);
+void print_headers(const flags_t &flags, const string &format,
+		const string &sorting, const filters_t &filters,
+		const counters_t &counts, const screensize_t &ssize,
+		int table_size, WINDOW *mainwin);
 void print_table(vector<table_t> &stable, const flags_t &flags,
 		const string &format, const string &sorting,
 		const filters_t &filters, const counters_t &counts,
@@ -547,7 +551,7 @@ while(1) {
 	 * is twice the calls per-state if they are enabled, for no additional
 	 * benefit.
 	 */
-	if (flags.counters && stable[0].bytes == 0) {
+	if (flags.counters && stable.size() > 0 && stable[0].bytes == 0) {
 		prompt = "Counters requested, but not enabled in the kernel!";
 		flags.counters = 0;
 		c_warn(mainwin,prompt,flags);
@@ -1524,21 +1528,11 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 
 }
 
-/*
- * This does all the work of actually printing the table including
- * various bits of formatting. It handles both curses and non-curses runs.
- */
-void print_table(vector<table_t> &stable, const flags_t &flags,
-		const string &format, const string &sorting,
-		const filters_t &filters, const counters_t &counts,
-		const screensize_t &ssize, const max_t &max,
-		WINDOW *mainwin, unsigned int &curr)
+void print_headers(const flags_t &flags, const string &format,
+		const string &sorting, const filters_t &filters,
+		const counters_t &counts, const screensize_t &ssize,
+		int table_size, WINDOW *mainwin)
 {
-
-	/*
-	 * Print headers
-	 */
-
 	if (flags.single) {
 		cout << "IP Tables State Top -- Sort by: " << sorting << endl;
 	} else {
@@ -1573,12 +1567,12 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	 */
 	if (flags.totals) {
 		if (flags.single)
-			printf(TOTALS_FORMAT,stable.size()+counts.skipped,
+			printf(TOTALS_FORMAT,table_size+counts.skipped,
 				counts.tcp,counts.udp,counts.icmp,counts.other,
 				counts.skipped);
 		else
 			wprintw(mainwin,TOTALS_FORMAT,
-				stable.size()+counts.skipped,counts.tcp,
+				table_size+counts.skipped,counts.tcp,
 				counts.udp,counts.icmp,counts.other,
 				counts.skipped);
 	}
@@ -1669,6 +1663,26 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 		}
 		wattroff(mainwin,A_BOLD);
 	}
+
+}
+
+
+/*
+ * This does all the work of actually printing the table including
+ * various bits of formatting. It handles both curses and non-curses runs.
+ */
+void print_table(vector<table_t> &stable, const flags_t &flags,
+		const string &format, const string &sorting,
+		const filters_t &filters, const counters_t &counts,
+		const screensize_t &ssize, const max_t &max,
+		WINDOW *mainwin, unsigned int &curr)
+{
+
+	/*
+	 * Print headers
+	 */
+	print_headers(flags, format, sorting, filters, counts, ssize,
+		stable.size(), mainwin);
 
 	/*
 	 * Print the state table
