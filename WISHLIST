@@ -9,6 +9,8 @@ Features coming soon:
 
 Features that may come later:
 - Secondary sorting
+- Display packets/bytes per interval instead of just total
+- Display the "CONNMARK" value of each connection
 
 Features I probably won't add because I'm not that interested, or 
 don't feel they belong, or would be too much work, or some
