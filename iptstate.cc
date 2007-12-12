@@ -46,6 +46,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
+#include <string.h>
 #include <ncurses.h>
 #include <signal.h>
 #include <unistd.h>
@@ -1178,7 +1179,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	 * 	it's own function once the other copy of build_table()
 	 * 	is gone.
 	 */
-	if (flags->skiplb && (inet_ntoa(entry.src) == "127.0.0.1")) {
+	if (flags->skiplb && !strcmp(inet_ntoa(entry.src),"127.0.0.1")) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
