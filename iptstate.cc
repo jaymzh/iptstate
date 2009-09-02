@@ -176,7 +176,7 @@ void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max);
 int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
-			void *tmp);
+		void *tmp);
 void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags);
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		vector<table_t> &stable, string &sorting);
@@ -189,8 +189,8 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 		const filters_t &filters, const counters_t &counts,
 		const screensize_t &ssize, const max_t &max,
 		WINDOW *mainwin, unsigned int &curr);
-void determine_format(max_t &max, screensize_t &ssize, string &format,
-		const flags_t &flags);
+void determine_format(WINDOW *mainwin, max_t &max, screensize_t &ssize,
+		string &format, flags_t &flags);
 void interactive_help(const string &sorting, const flags_t &flags,
 		const filters_t &filters);
 void printline(table_t &table, const flags_t &flags, const string &format,
@@ -550,7 +550,7 @@ while(1) {
 	 * BTW, we do "get_size" again here incase the window changed while we
 	 * were off parsing and sorting data.
 	 */
-	determine_format(max,ssize,format,flags);
+	determine_format(mainwin,max,ssize,format,flags);
 
 	/*
 	 * Now we print out the table in whichever format we're configured for
@@ -1247,7 +1247,7 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		case SORT_PROTO:
 			qsort(&(stable[0]),stable.size(),sizeof(table_t),
 					proto_sort);
-			sorting = "Proto";
+			sorting = "Prt";
 			break;
 
 		case SORT_STATE:
@@ -1404,20 +1404,20 @@ void print_headers(const flags_t &flags, const string &format,
 	 */
 	if (flags.single) {
 		if (flags.counters) {
-			printf(format.c_str(),"Source","Destination","Proto",
+			printf(format.c_str(),"Source","Destination","Prt",
 				"State","TTL","B","P");
 		} else {
-			printf(format.c_str(),"Source","Destination","Proto",
+			printf(format.c_str(),"Source","Destination","Prt",
 				"State","TTL");
 		}
 	} else {
 		wattron(mainwin,A_BOLD);
 		if (flags.counters) {
 			wprintw(mainwin,format.c_str(),"Source","Destination",
-				"Proto", "State","TTL","B","P");
+				"Prt", "State","TTL","B","P");
 		} else {
 			wprintw(mainwin,format.c_str(),"Source","Destination",
-				"Proto","State","TTL");
+				"Prt","State","TTL");
 		}
 		wattroff(mainwin,A_BOLD);
 	}
@@ -1468,8 +1468,8 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 /*
  * Dynamically build a format to fit the most amount of data on the screen
  */
-void determine_format(max_t &max, screensize_t &ssize, string &format,
-		const flags_t &flags)
+void determine_format(WINDOW *mainwin, max_t &max, screensize_t &ssize,
+		string &format, flags_t &flags)
 {
 
 	/*
@@ -1494,12 +1494,18 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 
 	ssize = get_size(flags.single);
 
-	// These three, are easy
-	/*
-	unsigned int ttl = max.ttl;
-	unsigned int state = max.state;
-	unsigned int proto = max.proto;
-	*/
+	/* The screen must be 85 chars wide to be able to fit in
+	 * counters when we display IP addresses...
+	 *
+         * in lookup mode, we can truncate names, but in IP mode,
+         * truncation makes no sense, so we just disable counters if
+         * we run into this.
+         */
+	if (ssize.x < 85 && flags.counters && !flags.lookup) {
+		string prompt = "Window too narrow for counters! Disabling.";
+		c_warn(mainwin, prompt, flags);
+		flags.counters = false;
+	}
 
 	/* what's left is the above three, plus 4 spaces
 	 * (one between each of 5 fields)
@@ -1507,8 +1513,6 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 	unsigned int left = ssize.x - max.ttl - max.state - max.proto
 				- 4;
 	if (flags.counters) {
-		//cerr << "left is " << left << " bytes is " << max.bytes
-		//	<< " packs is " << max.packets << endl;
 		left -= (max.bytes + max.packets + 2);
 	}
 
@@ -1601,11 +1605,6 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 
 	format = buffer.str();
 
-/*
-	max.ttl = ttl;
-	max.state = state;
-	max.proto = proto;
-*/
 	max.dst = dst;
 	max.src = src;
 
@@ -2713,7 +2712,7 @@ void initialize_maxes(max_t &max, flags_t &flags)
 	/*
 	 * The proto header is 5, so we can't drop below 6.
 	 */
-	max.proto = 5;
+	max.proto = 3;
 	/*
 	 * "ESTABLISHED" is generally the longest state, we almost always have
 	 * several, so we'll start with this. It also looks really bad if state
