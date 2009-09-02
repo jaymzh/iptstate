@@ -1,26 +1,22 @@
 IPTSTATE WISHLIST
-Current for version 2.1
 This is the wishlist. READ IT BEFORE EMAILING ME.
 
-Features coming in the next version:
+Features coming soon:
 - Filtering hostnames
 - Inverse filtering
+- Display NAT'd IP
+- IPV6 support
 
-Features I may add if I have a lot of time or find a use for them
+Features that may come later:
 - Secondary sorting
-
-Features that would be cool but can't/won't happen
-- I would like to show "number of packets" sent by a state, but
-  /proc/net/ip_conntrack doesn't seem to store that information.
-  If the cfnet stuff ever becomes used in the real world, I'll
-  probably port iptstate to that and then be able to provide
-  such a feature.
+- Display packets/bytes per interval instead of just total
+- Display the "CONNMARK" value of each connection
 
 Features I probably won't add because I'm not that interested, or 
-Don't feel they belong, or would be too much work, or some
-Combination therein.
+don't feel they belong, or would be too much work, or some
+combination therein.
 - Full regex filtering
 
 
 Phil Dibowitz
-phil@ipom.com
+phil AT ipom DOT com

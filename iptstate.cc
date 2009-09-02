@@ -1,10 +1,12 @@
 /*
+ * vim:textwidth=78:
+ *
  * iptstate.cc
  * IPTables State
  *
  * -----------------------------------
  *
- * Copyright (C) 2002 - 2006 Phil Dibowitz
+ * Copyright (C) 2002 - 2007 Phil Dibowitz
  *
  * This software is provided 'as-is', without any express or
  * implied warranty. In no event will the authors be held
@@ -38,35 +40,50 @@
  *
  */ 
 
+#include <cerrno>
+#include <cmath>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <sstream>
-// Begin old-style includes includes
-#include <stdlib.h>
-#include <ncurses.h>
-#include <signal.h>
-#include <unistd.h>
-#include <errno.h>
-/*
- * note some versions of gcc/libc requires:
- *    #include <sys/select.h>
- *    #include <time.h>
- *
- * instead of:
- *    #incldue <sys/time.h>
- */
-#include <sys/time.h>
+
+// There are no C++-ified versions of these.
+#include <arpa/inet.h>
 #include <getopt.h>
 #include <netdb.h>
-#include <arpa/inet.h>
-#include <math.h>
+#include <ncurses.h>
+#include <unistd.h>
+
+#ifndef IPTSTATE_USE_PROC
+extern "C" {
+	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+};
+#else
+	#warning "Compiling in backwards compatability proc mode. This is DEPRECATED and support for this will be removed in the future!"
+	#define CONNTRACK "/proc/net/ip_conntrack"
+#endif
 using namespace std;
 
-#define VERSION "2.1"
-#define CONNTRACK "/proc/net/ip_conntrack"
+#define VERSION "2.2.1+CVS"
+/* #define CONNTRACK "/proc/net/ip_conntrack" */
+/*
+ * MAXCONS is set to 16k, the default number of states in iptables. Generally
+ * speaking the ncurses pad is this many lines long, but since ncurses
+ * uses a short for their dimensions, a pad can never be longer than 32767.
+ * Thus we define both of these values and NLINES as the lesser of the two.
+ */
 #define MAXCONS 16384
+#define MAXLINES 32767
+#if MAXCONS < MAXLINES
+  #define NLINES MAXCONS
+#else
+  #define NLINES MAXLINES
+#endif
 #define MAXFIELDS 20
 // This is the default format string if we don't dynamically determine it
 #define DEFAULT_FORMAT "%-21s %-21s %-7s %-12s %-9s\n"
@@ -90,8 +107,15 @@ using namespace std;
 #define SORT_PROTO 4
 #define SORT_STATE 5
 #define SORT_TTL 6
-// This should ALWAYS the same as the above.
-#define SORT_MAX 6
+#ifndef IPTSTATE_USE_PROC
+  #define SORT_BYTES 7
+  #define SORT_PACKETS 8
+  // This should ALWAYS the same as the above.
+  #define SORT_MAX 8
+#else
+  // This should ALWAYS the same as the above.
+  #define SORT_MAX 6
+#endif
 
 /*
  * GLOBAL CONSTANTS
@@ -103,14 +127,30 @@ using namespace std;
 int sort_factor = 1;
 bool need_resize = false;
 
+#ifndef IPTSTATE_USE_PROC
+/* shameless stolen from libnetfilter_conntrack_tcp.c */
+static const char *states[] = {
+        "NONE",
+        "SYN_SENT",
+        "SYN_RECV",
+        "ESTABLISHED",
+        "FIN_WAIT",
+        "CLOSE_WAIT",
+        "LAST_ACK",
+        "TIME_WAIT",
+        "CLOSE",
+        "LISTEN"
+};
+#endif
+
 /*
  * STRUCTS
  */
 // One state-table entry
 struct table_t {
-	string proto, state, ttl, sname, dname;
+	string proto, state, ttl, sname, dname, spname, dpname;
 	in_addr src, dst;
-	int srcpt, dstpt;
+	int srcpt, dstpt, bytes, packets;
 };
 // x/y of the terminal window
 struct screensize_t {
@@ -120,7 +160,7 @@ struct screensize_t {
 struct flags_t {
 	bool single, totals, lookup, skiplb, staticsize, skipdns, tag_truncate,
 	     	filter_src, filter_dst, filter_srcpt, filter_dstpt, noscroll,
-		nocolor;
+		nocolor, counters;
 };
 // Struct 'o counters
 struct counters_t {
@@ -132,41 +172,63 @@ struct filters_t {
 };
 // The max-length of fields in the stable table
 struct max_t {
-	unsigned int src, dst, proto, state, ttl;
+	unsigned int src, dst, proto, state, ttl, bytes, packets;
 };
+#ifndef IPTSTATE_USE_PROC
+struct hook_data {
+	vector<table_t> *stable;
+	flags_t *flags;
+	max_t *max;
+	counters_t *counts;
+	const filters_t *filters;
+};
+#endif
 
 /*
  * FUNCTIONS
  */
 
 // Core functions
-void build_table(const flags_t &flags, const filters_t &filters,
+void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max);
+#ifndef IPTSTATE_USE_PROC
+int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
+			void *tmp);
+void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags);
+#endif
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		vector<table_t> &stable, string &sorting);
+void print_headers(const flags_t &flags, const string &format,
+		const string &sorting, const filters_t &filters,
+		const counters_t &counts, const screensize_t &ssize,
+		int table_size, WINDOW *mainwin);
 void print_table(vector<table_t> &stable, const flags_t &flags,
 		const string &format, const string &sorting,
 		const filters_t &filters, const counters_t &counts,
 		const screensize_t &ssize, const max_t &max,
-		WINDOW *mainwin);
+		WINDOW *mainwin, unsigned int &curr);
 void determine_format(max_t &max, screensize_t &ssize, string &format,
 		const flags_t &flags);
 void interactive_help(const string &sorting, const flags_t &flags,
 		const filters_t &filters);
 void printline(table_t &table, const flags_t &flags, const string &format,
-		const max_t &max, WINDOW *mainwin);
+		const max_t &max, WINDOW *mainwin, const bool curr);
+void version();
 
 // General helper functions
 void split(char s, string line, string &p1, string &p2);
 void splita(char s, string line, vector<string> &result);
-int digits(int x);
+unsigned int digits(int x);
 bool check_ip(const char *arg);
 void help();
-void resolve(const in_addr &ip, string &name, unsigned int &size);
+void resolve_names(table_t &entry, max_t &max);
+void resolve_host(const in_addr &ip, string &name);
+void resolve_port(const int &port, string &name, const string &proto);
 void truncate(table_t &table, const max_t &max, const flags_t &flags);
 void winch_handler(int sig);
 void kill_handler(int sig);
+void initialize_maxes(max_t &max, flags_t &flags);
 
 // Sort functions
 int src_sort(const void *a, const void *b);
@@ -178,6 +240,8 @@ int state_sort(const void *a, const void *b);
 int ttl_sort(const void *a, const void *b);
 int sname_sort(const void *a, const void *b);
 int dname_sort(const void *a, const void *b);
+int bytes_sort(const void *a, const void *b);
+int packets_sort(const void *a, const void *b);
 
 // Curses helper functionsr
 static WINDOW* start_curses(flags_t &flags);
@@ -202,8 +266,8 @@ string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins, secs,
        hrs, sorting, tmpstring, format, prompt;
 ostringstream ostream;
 vector<table_t> stable;
-int tmpint = 0, sortby = 0, rate = 1;
-unsigned int py = 0, px = 0;
+int tmpint = 0, sortby = 0, rate = 1, hdrs = 0;
+unsigned int py = 0, px = 0, curr_state = 0;
 timeval selecttimeout;
 fd_set readfd;
 flags_t flags;
@@ -218,7 +282,7 @@ max_t max;
 flags.single = flags.totals = flags.lookup = flags.skiplb = flags.staticsize
 	= flags.skipdns = flags.tag_truncate = flags.filter_src
 	= flags.filter_dst = flags.filter_srcpt = flags.filter_dstpt
-	= flags.noscroll = flags.nocolor = false;
+	= flags.noscroll = flags.nocolor = flags.counters = false;
 ssize.x = ssize.y = 0;
 counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped = 0;
 filters.src = filters.dst = filters.srcpt = filters.dstpt = "";
@@ -226,6 +290,9 @@ max.src = max.dst = max.proto = max.state = max.ttl = 0;
 px = py = 0;
 
 static struct option long_options[] = {
+#ifndef IPTSTATE_USE_PROC
+	{"counters", no_argument , 0, 'C'},
+#endif
 	{"dst-filter", required_argument, 0, 'd'},
 	{"dstpt-filter", required_argument, 0, 'D'},
 	{"help", no_argument, 0, 'h'},
@@ -243,13 +310,19 @@ static struct option long_options[] = {
 	{"src-filter", required_argument, 0, 's'},
 	{"srcpt-filter", required_argument, 0, 'S'},
 	{"totals", no_argument, 0, 't'},
+	{"version", no_argument, 0, 'v'},
 	{0,0,0,0}
 };
 int option_index = 0;
 
 // Command Line Arguments
-while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
+#ifndef IPTSTATE_USE_PROC
+while ((tmpint = getopt_long(argc,argv,"Cd:D:hlmcoLfpR:r1b:s:S:tv",long_options,
 				&option_index)) != EOF) {
+#else
+while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:tv",long_options,
+				&option_index)) != EOF) {
+#endif
 	switch (tmpint) {
 		case 0:
 			/* Apparently this test is needed?! Seems lame! */
@@ -269,6 +342,12 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 			 */
 
 			break;
+#ifndef IPTSTATE_USE_PROC
+		// --counters
+		case 'C':
+			flags.counters = true;
+			break;
+#endif
 		// --dst-filter
 		case 'd':
 			if (optarg == NULL)
@@ -353,6 +432,14 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 				sortby=SORT_STATE;
 			else if (*optarg == 't')
 				sortby=SORT_TTL;
+#ifndef IPTSTATE_USE_PROC
+			else if (*optarg == 'b')
+				sortby=SORT_BYTES;
+			else if (*optarg == 'P')
+				sortby=SORT_PACKETS;
+			if (!flags.counters)
+				sortby=SORT_SRC;
+#endif
 			break;
 		// --single
 		case '1':
@@ -386,10 +473,16 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 		case 't':
 			flags.totals = true;
 			break;
+		// --version
+		case 'v':
+			version();
+			exit(0);
+			break;
 		// catch-all
 		default:
 			// getopts should already have printed a message
 			exit(1);
+			break;
 	}
 }
 
@@ -424,8 +517,57 @@ while(1) {
 		term_too_small();
 	}
 
+	// And our header size
+	hdrs = 3;
+	if (flags.totals) {
+		hdrs++;
+	}
+	if (flags.filter_src || flags.filter_dst || flags.filter_srcpt
+	    || flags.filter_dstpt) {
+		hdrs++;
+	}
+
+	// clear maxes
+	initialize_maxes(max, flags);
+
 	// Build our table
 	build_table(flags,filters,stable,counts,max);
+
+	/*
+	 * Now that we have the new table, make sure our page/cursor positions
+	 * still make sense.
+	 */
+	if (curr_state > stable.size()-1) {
+		curr_state = stable.size()-1;
+	}
+
+	/*
+	 * The bottom of the screen is stable.size()+hdrs+1
+	 *   (the +1 is so we can have a blank line at the end)
+	 * but we want to never have py be more than that - ssize.y
+	 * so we're showing a page full of states.
+	 */
+	int bottom = stable.size()+hdrs+1-ssize.y;
+	if (bottom < 0)
+		bottom = 0;
+	if (py > (unsigned)bottom)
+		py = bottom;
+
+	/*
+	 * Originally I strived to do this the "right" way by calling
+	 * nfct_is_set(ct, ATTR_ORIG_COUNGERS) to determine if counters
+	 * were enabled. BUT, if counters are not enabled, nfct_get_attr()
+	 * returns NULL, so this test is just as valid.
+	 *
+	 * Conversely checking is_set and then get_attr() inside our callback
+	 * is twice the calls per-state if they are enabled, for no additional
+	 * benefit.
+	 */
+	if (flags.counters && stable.size() > 0 && stable[0].bytes == 0) {
+		prompt = "Counters requested, but not enabled in the kernel!";
+		flags.counters = 0;
+		c_warn(mainwin,prompt,flags);
+	}
 
 	// Sort our table
 	sort_table(sortby,flags.lookup,sort_factor,stable,sorting);
@@ -439,12 +581,12 @@ while(1) {
 	 * were off parsing and sorting data.
 	 */
 	determine_format(max,ssize,format,flags);
-	
+
 	/*
 	 * Now we print out the table in whichever format we're configured for
 	 */
 	print_table(stable,flags,format,sorting,filters,counts,ssize,max,
-			mainwin);
+			mainwin,curr_state);
 
 	// Exit if we're only supposed to run once
 	if (flags.single)
@@ -490,6 +632,13 @@ while(1) {
 				if (has_colors())
 					flags.nocolor = !flags.nocolor;
 				break;
+#ifndef IPTSTATE_USE_PROC
+			case 'C':
+				flags.counters = !flags.counters;
+				if (sortby >= SORT_BYTES)
+					sortby = SORT_BYTES-1;
+				break;
+#endif
 			case 'h':
 				interactive_help(sorting,flags,filters);
 				break;
@@ -515,10 +664,30 @@ while(1) {
 				sort_factor = -sort_factor;
 				break;
 			case 'b':
-				if (sortby < SORT_MAX)
+				if (sortby < SORT_MAX) {
 					sortby++;
-				else
-					sortby=0;
+#ifndef IPTSTATE_USE_PROC
+					if (!flags.counters
+					    && sortby >= SORT_BYTES)
+						sortby = 0;
+#endif
+				} else {
+					sortby = 0;
+				}
+				break;
+			case 'B':
+				if (sortby > 0) {
+					sortby--;
+				} else {
+#ifndef IPTSTATE_USE_PROC
+					if (flags.counters)
+						sortby=SORT_MAX;
+					else
+						sortby=SORT_BYTES-1;
+#else
+					sortby=SORT_MAX;
+#endif
+				}
 				break;
 			case 't':
 				flags.totals = !flags.totals;
@@ -618,6 +787,11 @@ while(1) {
 				wmove(mainwin,0,0);
 				wclrtoeol(mainwin);
 				break;
+#ifndef IPTSTATE_USE_PROC
+			case 'x':
+				delete_state(mainwin, stable[curr_state], flags);
+				break;
+#endif
 			/*
 			 * Window navigation
 			 */
@@ -626,55 +800,128 @@ while(1) {
 				if (flags.noscroll)
 					break;
 				/*
+				 * GENERAL NOTE:
 				 * py is the top of the window,
 				 * ssize.y is the height of the window,
 				 * so py+ssize.y is the bottom of the window.
 				 *
-				 * Since stable.size()+4 (for the headers) is
+				 * BOTTOM OF SCROLLING:
+				 * Since stable.size()+hdrs+1 is
 				 * the bottom of the text we've written, if
-				 *    py+ssize.y == stable.size()
+				 *    py+ssize.y == stable.size()+hdrs+1
 				 * then the bottom of the screen as at the
 				 * bottom of the text, no more scrolling.
+				 *
+				 * However, we only want to scroll the page
+				 * when the cursor is at the bottom, i.e.
+				 * when curr_state+4 == py+ssize.y
 				 */
-				if (py + ssize.y < stable.size()+4)
-					py++;
+
+				/*
+				 * If we have room to scroll down AND if cur is
+				 * at the bottom of a page scroll down.
+				 */
+				if ((py + ssize.y <= stable.size()+hdrs+1)
+				    && (curr_state+4 == py + ssize.y))
+						py++;
+
+				/*
+				 * As long as the cursor isn't at the end,
+				 * move it down one.
+				 */
+				if (curr_state < stable.size()-1)
+					curr_state++;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_UP:
 			case 'k':
 				if (flags.noscroll)
 					break;
-				if (py > 0)
+
+				/*
+				 * This one is tricky.
+				 *
+				 * First thing we need to know is when the cursor
+				 * is at the top of the page. This is simply when
+				 * curr_state+hdrs+1 cursor location), is
+				 * exactly one more than the top of the window
+				 * (py), * i.e. when curr_state+hdrs+1 == py+1.
+				 *
+				 * PAGE SCROLLING:
+				 * IF we're not page-scrolled all the way up
+				 *    (i.e. py > 0)
+				 *    AND the cursor is at the top of the page
+				 * OR the cursor is at the top of the list,
+				 *    AND we're not yet at the top (showing
+				 *    the headers).
+				 * THEN we scroll up.
+				 *
+				 * CURSOR SCROLLING:
+				 * Unlike KEY_DOWN, we don't break just because
+				 * the cursor can't move anymore - on the way
+				 * ip we may still have page-scrolling to do. So
+				 * test to make sure we're not at state 0, and if
+				 * so, we scroll up.
+				 */
+
+				/*
+				 * Basically:
+				 *  IF the cursor bumps the top of the screen
+				 *  OR we need to scroll up for headers
+				 */
+				if (  (py > 0 && (curr_state+hdrs+1) == (py+1))
+				   || (curr_state == 0 && py > 0              ) )
 					py--;
+
+				if (curr_state > 0)
+					curr_state--;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			// 4 is ^d
+			case 4:
 			case KEY_NPAGE:
 			case KEY_SNEXT:
 				if (flags.noscroll)
 					break;
 				/*
 				 * If the screen is bigger than the text,
-				 * ignore.
+				 * and the cursor is at the bottom, ignore.
 				 */
-				if (stable.size()+4 < ssize.y)
+				if (stable.size()+hdrs+1 < ssize.y
+				    && curr_state == stable.size())
 					break;
+
 				/*
 				 * Otherwise, if the bottom of the screen
 				 *    (current position + screen size
 				 *     == py + ssize.y)
 				 * were to go down one screen (thus:
 				 *     py + ssize.y*2),
-				 * and that is bigger than the whole table, just
+				 * and that is bigger than the whole pad, just
 				 * go to the bottom.
 				 *
 				 * Otherwise, go down a screen size.
 				 */
-				if (py + ssize.y*2 > stable.size()+4)
-					py = stable.size()+4-ssize.y;
-				else
+				if (py + ssize.y*2 > stable.size()+hdrs+1) {
+					py = stable.size()+hdrs+1-ssize.y;
+				} else {
 					py += ssize.y;
+				}
+
+				/*
+				 * For the cursor, we try to move it down one
+				 * screen as well, but if that's too far,
+				 * we bring it up to the largest number it can
+				 * be.
+				 */
+				curr_state += ssize.y;
+				if (curr_state > stable.size()) {
+					curr_state = stable.size();
+				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			// 21 is ^u
+			case 21:
 			case KEY_PPAGE:
 			case KEY_SPREVIOUS:
 				if (flags.noscroll)
@@ -682,30 +929,42 @@ while(1) {
 				/*
 				 * If we're at the top, ignore
 				 */
-				if (py == 0)
+				if (py == 0 && curr_state == 0)
 					break;
 				/*
 				 * Otherwise if we're less than a page from the
 				 * top, go to the top, else go up a page.
 				 */
-				if (py < ssize.y)
+				if (py < ssize.y) {
 					py = 0;
-				else
+				} else {
 					py -= ssize.y;
+				}
+
+				/*
+				 * We bring the cursor up a page too, unless
+				 * that's too far.
+				 */
+				if (curr_state < ssize.y) {
+					curr_state = 0;
+				} else {
+					curr_state -= ssize.y;
+				}
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_HOME:
 				if (flags.noscroll)
 					break;
-				px = py = 0;
+				px = py = curr_state = 0;
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 			case KEY_END:
 				if (flags.noscroll)
 					break;
-				py = stable.size()+4-ssize.y;
+				py = stable.size()+hdrs+1-ssize.y;
 				if (py < 0)
 					py = 0;
+				curr_state = stable.size();
 				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
 		}
@@ -735,10 +994,254 @@ return(0);
  * BEGIN FUNCTIONS
  */
 
+
 /*
- * This is the core of this program - build a table of states
+ * This is the core of this program - build a table of states.
+ *
+ * For the new libnetfilter_conntrack code, the bulk of build_table was moved
+ * to the conntrack callback function.
  */
-void build_table(const flags_t &flags, const filters_t &filters,
+
+#ifndef IPTSTATE_USE_PROC
+void build_table(flags_t &flags, const filters_t &filters,
+		vector<table_t> &stable, counters_t &counts,
+		max_t &max)
+{
+
+	/*
+	 * Variables
+	 */
+	int res=0;
+	vector<string> fields(MAXFIELDS);
+	static struct nfct_handle *cth;
+	u_int8_t family = AF_INET;
+
+	/*
+	 * This is the ugly struct for the nfct hook, that holds pointers to
+	 * all of the things the callback will need to fill our table
+	 */
+	struct hook_data hook;
+	hook.stable = &stable;
+	hook.flags = &flags;
+	hook.max = &max;
+	hook.counts = &counts;
+	hook.filters = &filters;
+
+	/*
+	 * Initialization
+	 */
+	stable.clear();
+	counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped
+		= 0;
+
+
+	cth = nfct_open(CONNTRACK, 0);
+	if (!cth) {
+		end_curses();
+		printf("ERROR: couldn't establish conntrack connection\n");
+		exit(2);
+	}
+	nfct_callback_register(cth, NFCT_T_ALL, conntrack_hook, (void *)&hook);
+	res = nfct_query(cth, NFCT_Q_DUMP, &family);
+	if (res < 0) {
+		end_curses();
+		printf("ERROR: Couldn't retreive conntrack table: %s\n",
+			strerror(errno));
+		exit(2);
+	}
+	nfct_close(cth);
+
+}
+
+int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
+			void *tmp)
+{
+
+	/*
+	 * start by getting our struct back
+	 */
+	struct hook_data *data = static_cast<struct hook_data *>(tmp);
+
+	/*
+	 * and pull out the pieces
+	 */
+	vector<table_t> *stable = data->stable;
+	flags_t *flags = data->flags;
+	max_t *max = data->max;
+	counters_t *counts = data->counts;
+	const filters_t *filters = data->filters;
+
+	// our table entry
+	table_t entry;
+
+	// some vars
+	struct protoent* pe = NULL;
+	int seconds, minutes, hours;
+	char ttlc[11];
+	ostringstream typecode;
+
+	/*
+	 * Clear the entry
+	 */
+	entry.sname = "";
+	entry.dname = "";
+	entry.srcpt = 0;
+	entry.dstpt = 0;
+	entry.proto = "";
+	entry.ttl = "";
+	entry.state = "";
+
+	/*
+	 * First, we read stuff into the array that's always the
+	 * same regardless of protocol
+	 */
+
+	pe = getprotobynumber(
+		nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO));
+	if (pe == NULL) {
+		entry.proto = "unknown";
+	} else {
+		entry.proto = pe->p_name;
+	}
+
+	// ttl
+	seconds = nfct_get_attr_u32(ct, ATTR_TIMEOUT);
+	minutes = seconds/60;
+	hours = minutes/60;
+	minutes = minutes%60;
+	seconds = seconds%60;
+	// Format it with snprintf and store it in the table
+	snprintf(ttlc,11,"%3i:%02i:%02i",hours,minutes,seconds);
+	entry.ttl = ttlc; 
+
+	// Everything has addresses
+	entry.src.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
+	entry.dst.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_DST);
+
+	// Counters
+	entry.bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES);
+	entry.packets = 
+		nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS);
+
+	if (digits(entry.bytes) > max->bytes) {
+		max->bytes = digits(entry.bytes);
+	}
+	if (digits(entry.packets) > max->packets) {
+		max->packets = digits(entry.packets);
+	}
+
+	// OK, proto dependent stuff
+	if (entry.proto == "tcp" || entry.proto == "udp") {
+		entry.srcpt = htons(
+			nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
+		entry.dstpt = htons(
+			nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST));
+	}
+
+	if (entry.proto == "tcp") {
+
+		entry.state =
+			states[nfct_get_attr_u8(ct, ATTR_TCP_STATE)];
+		counts->tcp++;
+
+	} else if (entry.proto == "udp") {
+
+		entry.state = "";
+		counts->udp++;
+
+	} else if (entry.proto == "icmp") {
+
+		typecode.str("");
+		typecode << (int)nfct_get_attr_u8(ct, ATTR_ICMP_TYPE)
+			<< "/" << (int)nfct_get_attr_u8(ct, ATTR_ICMP_CODE)
+			<< " (" << nfct_get_attr_u16(ct, ATTR_ICMP_ID)
+			<< ")";
+
+
+		entry.state = typecode.str();
+		counts->icmp++;
+
+	} else {
+		/*
+		 * If the protocol is something else, then we need
+		 * to know how long the name of the protocol is so
+		 * we can format accordingly later.
+		 */
+		if (entry.proto.size() > max->proto)
+			max->proto = entry.proto.size();
+
+		counts->other++;
+
+	}
+
+	/*
+	 * FILTERING
+	 */
+
+	/*
+	 * FIXME: There's some awesome stupidity here. But it's here
+	 * 	for a reason. filters.* should be real ints
+	 * 	or inet_addrs as necessary, but if we do that
+	 * 	we'll break the #ifdef'd code below that's there for
+	 * 	backwards compatibility. Once we nuke that code
+	 * 	we make this MUCH cleaner.
+	 *
+	 * FIXME: Also, filtering can probably be pulled out to
+	 * 	it's own function once the other copy of build_table()
+	 * 	is gone.
+	 */
+	if (flags->skiplb && !strcmp(inet_ntoa(entry.src),"127.0.0.1")) {
+		counts->skipped++;
+		return NFCT_CB_CONTINUE;
+	}
+
+	if (flags->skipdns && (entry.dstpt == 53)) {
+		counts->skipped++;
+		return NFCT_CB_CONTINUE;
+	}
+
+	if (flags->filter_src
+	    && (inet_ntoa(entry.src) != filters->src)) {
+		counts->skipped++;
+		return NFCT_CB_CONTINUE;
+	}
+
+	if (flags->filter_srcpt
+	    && (entry.srcpt != atoi(filters->srcpt.c_str()))) {
+		counts->skipped++;
+		return NFCT_CB_CONTINUE;
+	}
+
+	if (flags->filter_dst
+	    && (inet_ntoa(entry.dst) != filters->dst)) {
+		counts->skipped++;
+		return NFCT_CB_CONTINUE;
+	}
+
+	if (flags->filter_dstpt
+	    && (entry.dstpt != atoi(filters->dstpt.c_str()))) {
+		counts->skipped++;
+		return NFCT_CB_CONTINUE; 
+	}
+
+	/*
+	 * RESOLVE AND TRUNCATE
+	 */
+
+	// Resolve Names if we need to
+	if (flags->lookup)
+		resolve_names(entry,*max);
+
+	/*
+	 * Add this to the array
+	 */
+	stable->push_back(entry);
+
+	return NFCT_CB_CONTINUE;
+}
+
+#else
+void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max)
 {
@@ -749,7 +1252,6 @@ void build_table(const flags_t &flags, const filters_t &filters,
 
 	// Temporary strings for holding/formatting/etc.
 	string line, mins, secs, hrs, tmpstring;
-	unsigned int size;
 	/*
 	 * These are ascii representations of various fields we parse in
 	 * before they get converted to in_addr/int/etc.
@@ -772,33 +1274,6 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	stable.clear();
 	counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped
 		= 0;
-	/*
-	 * For NO lookup:
-	 * src/dst IP can be no bigger than 21 chars:
-	 *    IP (max of 15) + colon (1) + port (max of 5) = 21
-	 *
-	 * For lookup:
-	 * if it's a name, we start with the width of the header, and we can
-	 * grow from there as needed.
-	 */
-	if (flags.lookup) {
-		max.src = 6;
-		max.dst = 11;
-	} else {
-		max.src = max.dst = 21;
-	}
-	/*
-	 * The proto header is 5, so we can't drop below 6.
-	 */
-	max.proto = 5;
-	/*
-	 * "ESTABLISHED" is generally the longest state, we almost always have
-	 * several, so we'll start with this. It also looks really bad if state
-	 * is changing size a lot, so we start with a common minumum.
-	 */
-	max.state = 11;
-	// TTL we statically make 7: xxx:xx:xx
-	max.ttl = 9;
 
 	// Open the file
 	ifstream input(CONNTRACK);
@@ -962,19 +1437,8 @@ void build_table(const flags_t &flags, const filters_t &filters,
 		 */
 
 		// Resolve Names if we need to
-		if (flags.lookup) {
-			resolve(entry.src,entry.sname,size);
-
-			size += 1 + digits(entry.srcpt);
-			if (size > max.src)
-				max.src = size;
-
-			resolve(entry.dst,entry.dname,size);
-			
-			size += 1 + digits(entry.dstpt);
-			if (size > max.dst)
-				max.dst = size;
-		}
+		if (flags.lookup)
+			resolve_names(entry, max);
 
 		/*
 		 * Add this to the array
@@ -985,6 +1449,7 @@ void build_table(const flags_t &flags, const filters_t &filters,
 	input.close(); // close the ip_conntrack
 
 }
+#endif
 
 /*
  * This sorts the table based on the current sorting preference
@@ -1044,9 +1509,24 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 			break;
 
 		case SORT_TTL:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),ttl_sort);
+			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+					ttl_sort);
 			sorting = "TTL";
 			break;
+
+#ifndef IPTSTATE_USE_PROC
+		case SORT_BYTES:
+			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+					bytes_sort);
+			sorting = "Bytes";
+			break;
+
+		case SORT_PACKETS:
+			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+					packets_sort);
+			sorting = "Packets";
+			break;
+#endif
 
 		default:
 			//we should never get here
@@ -1060,21 +1540,11 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 
 }
 
-/*
- * This does all the work of actually printing the table including
- * various bits of formatting. It handles both curses and non-curses runs.
- */
-void print_table(vector<table_t> &stable, const flags_t &flags,
-		const string &format, const string &sorting,
-		const filters_t &filters, const counters_t &counts,
-		const screensize_t &ssize, const max_t &max,
-		WINDOW *mainwin)
+void print_headers(const flags_t &flags, const string &format,
+		const string &sorting, const filters_t &filters,
+		const counters_t &counts, const screensize_t &ssize,
+		int table_size, WINDOW *mainwin)
 {
-
-	/*
-	 * Print headers
-	 */
-
 	if (flags.single) {
 		cout << "IP Tables State Top -- Sort by: " << sorting << endl;
 	} else {
@@ -1109,12 +1579,12 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	 */
 	if (flags.totals) {
 		if (flags.single)
-			printf(TOTALS_FORMAT,stable.size()+counts.skipped,
+			printf(TOTALS_FORMAT,table_size+counts.skipped,
 				counts.tcp,counts.udp,counts.icmp,counts.other,
 				counts.skipped);
 		else
 			wprintw(mainwin,TOTALS_FORMAT,
-				stable.size()+counts.skipped,counts.tcp,
+				table_size+counts.skipped,counts.tcp,
 				counts.udp,counts.icmp,counts.other,
 				counts.skipped);
 	}
@@ -1187,20 +1657,52 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	 * Print column headers
 	 */
 	if (flags.single) {
-		printf(format.c_str(),"Source","Destination","Proto","State",
-				"TTL");
+		if (flags.counters) {
+			printf(format.c_str(),"Source","Destination","Proto",
+				"State","TTL","B","P");
+		} else {
+			printf(format.c_str(),"Source","Destination","Proto",
+				"State","TTL");
+		}
 	} else {
 		wattron(mainwin,A_BOLD);
-		wprintw(mainwin,format.c_str(),"Source","Destination","Proto",
-				"State","TTL");
+		if (flags.counters) {
+			wprintw(mainwin,format.c_str(),"Source","Destination",
+				"Proto", "State","TTL","B","P");
+		} else {
+			wprintw(mainwin,format.c_str(),"Source","Destination",
+				"Proto","State","TTL");
+		}
 		wattroff(mainwin,A_BOLD);
 	}
+
+}
+
+
+/*
+ * This does all the work of actually printing the table including
+ * various bits of formatting. It handles both curses and non-curses runs.
+ */
+void print_table(vector<table_t> &stable, const flags_t &flags,
+		const string &format, const string &sorting,
+		const filters_t &filters, const counters_t &counts,
+		const screensize_t &ssize, const max_t &max,
+		WINDOW *mainwin, unsigned int &curr)
+{
+
+	/*
+	 * Print headers
+	 */
+	print_headers(flags, format, sorting, filters, counts, ssize,
+		stable.size(), mainwin);
 
 	/*
 	 * Print the state table
 	 */
-	for (unsigned int tmpint=0; tmpint < stable.size(); tmpint++) {
-		printline(stable[tmpint],flags,format,max,mainwin);
+	unsigned int limit = (stable.size() < NLINES) ? stable.size() : NLINES;
+	for (unsigned int tmpint=0; tmpint < limit; tmpint++) {
+		printline(stable[tmpint],flags,format,max,mainwin,
+			(curr == tmpint));
 		if (!flags.single && flags.noscroll && 
 				(tmpint >= ssize.y-4 ||
 				   (flags.totals && tmpint >= ssize.y-5)))
@@ -1247,14 +1749,22 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 	ssize = get_size(flags.single);
 
 	// These three, are easy
+	/*
 	unsigned int ttl = max.ttl;
 	unsigned int state = max.state;
 	unsigned int proto = max.proto;
+	*/
 
 	/* what's left is the above three, plus 4 spaces
 	 * (one between each of 5 fields)
 	 */
-	unsigned int left = ssize.x - ttl - state - proto - 4;
+	unsigned int left = ssize.x - max.ttl - max.state - max.proto
+				- 4;
+	if (flags.counters) {
+		//cerr << "left is " << left << " bytes is " << max.bytes
+		//	<< " packs is " << max.packets << endl;
+		left -= (max.bytes + max.packets + 2);
+	}
 
 	/*
 	 * The rest is *prolly* going to be divided between src
@@ -1333,17 +1843,23 @@ void determine_format(max_t &max, screensize_t &ssize, string &format,
 	 */
 
 	ostringstream buffer;
-	buffer << "\%-" << src << "s \%-" << dst << "s \%-" << proto << "s \%-"
-		<< state << "s \%-" << ttl << "s";
+	buffer << "\%-" << src << "s \%-" << dst << "s \%-" << max.proto << "s \%-"
+		<< max.state << "s \%-" << max.ttl << "s";
+
+	if (flags.counters) {
+		buffer << " \%-" << max.bytes << "s \%-" << max.packets << "s";
+	}
 
 	if (flags.single)
 		buffer << "\n";
 
 	format = buffer.str();
 
+/*
 	max.ttl = ttl;
 	max.state = state;
 	max.proto = proto;
+*/
 	max.dst = dst;
 	max.src = src;
 
@@ -1375,7 +1891,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	 *
 	 * If the screen is bigger than this, we deal with it below.
 	 */
-	unsigned int maxrows = 36;
+#ifndef IPTSTATE_USE_PROC
+	unsigned int maxrows = 41;
+#else
+	unsigned int maxrows = 39;
+#endif
 	unsigned int maxcols = 80;
 
 	/*
@@ -1442,6 +1962,14 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	// border
 	x++;
 
+	string nav = "Up/j, Down/k, Left/h, Right/l, PageUp/^u, PageDown/^d,";
+	nav += " Home, or End";
+	// Print instructions first
+	mvwaddstr(helpwin,y++,x,"Navigation:");
+	mvwaddstr(helpwin,y++,x,nav.c_str());
+	mvwaddstr(helpwin,y++,x,"  Press any other key to continue...");
+	y++;
+
 	// Print settings
 	mvwaddstr(helpwin,y++,x,"Current settings:");
 
@@ -1490,6 +2018,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	waddstr(helpwin,(flags.totals) ? "yes" : "no");
 	wattroff(helpwin,A_BOLD);
 
+	mvwaddstr(helpwin,y++,x,"  Display counters: ");
+	wattron(helpwin,A_BOLD);
+	waddstr(helpwin,(flags.counters) ? "yes" : "no");
+	wattroff(helpwin,A_BOLD);
+
 	if (flags.filter_src) {
 		mvwaddstr(helpwin,y++,x,"  Source filter: ");
 		wattron(helpwin,A_BOLD);
@@ -1521,9 +2054,26 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	mvwaddstr(helpwin,y++,x,"Interactive commands:");
 
 	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  c");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,"\tUse colors");
+
+#ifndef IPTSTATE_USE_PROC
+	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  C");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,"\tToggle display of bytes/packets counters");
+#endif
+
+	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  b");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tSort by next column");
+
+	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  B");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,"\tSort by previous column");
 
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  d");
@@ -1534,11 +2084,6 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	mvwaddstr(helpwin,y++,x,"  D");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tChange destination port filter");
-
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  o");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle dynamic or old formatting");
 
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  f");
@@ -1556,19 +2101,19 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	waddstr(helpwin,"\tToggle DNS lookups");
 
 	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  L");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,"\tToggle display of outgoing DNS states");
+
+	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  m");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tToggle marking truncated hostnames with a '+'");
 
 	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  c");
+	mvwaddstr(helpwin,y++,x,"  o");
 	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tUse colors");
-
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  L");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle display of outgoing DNS states");
+	waddstr(helpwin,"\tToggle dynamic or old formatting");
 
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  p");
@@ -1605,11 +2150,13 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tToggle display of totals");
 
-	y++;
-
-	mvwaddstr(helpwin,y++,x,
-			"Up/j, Down/k, Left/h, Right/l, Home, or End to navigate");
-	mvwaddstr(helpwin,y++,x,"Press any other key to continue...");
+#ifndef IPTSTATE_USE_PROC
+	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin,y++,x,"  x");
+	wattroff(helpwin,A_BOLD);
+	waddstr(helpwin,
+		"\tDelete the currently highlighted state from netfilter");
+#endif
 
 	y++;
 
@@ -1683,6 +2230,7 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				py = y-ssize.y;
 				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			case 4:
 			case KEY_NPAGE:
 			case KEY_SNEXT:
 				if (flags.noscroll)
@@ -1711,6 +2259,7 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				}
 				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
 				break;
+			case 21:
 			case KEY_PPAGE:
 			case KEY_SPREVIOUS:
 				if (flags.noscroll)
@@ -1751,25 +2300,25 @@ out:
  * An abstraction of priting a line for both single/curses modes
  */
 void printline(table_t &table, const flags_t &flags, const string &format,
-		const max_t &max, WINDOW *mainwin)
+		const max_t &max, WINDOW *mainwin, const bool curr)
 {
 	ostringstream buffer;
 	buffer.str("");
-	string src,dst;
+	string src,dst,b,p;
 	
 	if (flags.lookup)
 		truncate(table,max,flags);
 
 	if (table.proto == "tcp" || table.proto == "udp") {
 		if (flags.lookup && (table.sname != "")) {
-			buffer << table.sname << ":" << table.srcpt;
+			buffer << table.sname << ":" << table.spname;
 		} else {
 			buffer << inet_ntoa(table.src) << ":" << table.srcpt;
 		}
 		src = buffer.str();
 		buffer.str("");
 		if (flags.lookup && (table.dname != "")) {
-			buffer << table.dname << ":" << table.dstpt;
+			buffer << table.dname << ":" << table.dpname;
 		} else {
 			buffer << inet_ntoa(table.dst) << ":" << table.dstpt;
 		}
@@ -1787,10 +2336,26 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 			dst = inet_ntoa(table.dst);
 		}
 	}
+
+	if (flags.counters) {
+		buffer << table.bytes;
+		b = buffer.str();
+		buffer.str("");
+		buffer << table.packets;
+		p = buffer.str();
+		buffer.str("");
+	}
+		
 	if (flags.single) {
-		printf(format.c_str(), src.c_str(), dst.c_str(),
+		if (flags.counters) {
+			printf(format.c_str(), src.c_str(), dst.c_str(),
+				table.proto.c_str(), table.state.c_str(),
+				table.ttl.c_str(), b.c_str(),p.c_str());
+		} else {
+			printf(format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
 				table.ttl.c_str());
+		}
 	} else {
 		int color = 0;
 		if (!flags.nocolor) {
@@ -1800,11 +2365,21 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 				color = 2;
 			else if (table.proto == "icmp")
 				color = 3;
+			if (curr)
+				color += 4;
 			wattron(mainwin,COLOR_PAIR(color));
+				
 		}
-		wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
+		if (flags.counters) {
+			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
+				table.proto.c_str(), table.state.c_str(),
+				table.ttl.c_str(),b.c_str(),p.c_str());
+		} else {
+			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
 				table.ttl.c_str());	
+		}
+	
 		if (!flags.nocolor && color != 0)
 			wattroff(mainwin,COLOR_PAIR(color));
 	}
@@ -1846,9 +2421,9 @@ void splita(char s, string line, vector<string> &result)
 /*
  * This determines the length of an integer (i.e. number of digits)
  */
-int digits(int x)
+unsigned int digits(int x)
 {
-	return (int) floor(log10((double)x))+1;
+	return (unsigned int) floor(log10((double)x))+1;
 }
 
 /*
@@ -1866,16 +2441,24 @@ bool check_ip(const char *arg)
 /*
  * The help
  */
+void version() {
+	cout << "IPTables State Top Version " << VERSION << endl << endl;
+}
+
 void help()
 {
 	cout << "IPTables State Top Version " << VERSION << endl;
 	cout << "Usage: iptstate [<options>]\n\n";
 	cout << "  -c, --no-color\n";
 	cout << "	Toggle color-code by protocol\n\n";
+#ifndef IPTSTATE_USE_PROC
+	cout << "  -C, --counters\n";
+	cout << "	Toggle display of bytes/packets counters\n\n";
+#endif
 	cout << "  -d, --dst-filter <IP>\n";
 	cout << "	Only show states with a destination of <IP>\n";
-	cout << "	Note, that this must be an IP, hostname matching is "
-		<< "not yet supported.\n\n";
+	cout << "	Note, that this must be an IP, hostname matching is"
+		<< " not yet supported.\n\n";
 	cout << "  -D --dstpt-filter <port>\n";
 	cout << "	Only show states with a destination port of <port>\n\n";
 	cout << "  -h, --help\n";
@@ -1905,35 +2488,69 @@ void help()
 	cout << "	   p: Protocol\n";
 	cout << "	   s: State\n";
 	cout << "	   t: TTL\n";
-	cout << "	To sort by Source IP (or Name), don't use -b\n\n";
+	cout << "	   b: Bytes\n";
+	cout << "	   P: Packets\n";
+	cout << "	To sort by Source IP (or Name), don't use -b.\n";
+	cout << "	Note that bytes/packets are only available when"
+		<< " supported in the kernel,\n";
+	cout << "	and enabled with -C\n\n";
 	cout << "  -s, --src-filter <IP>\n";
 	cout << "	Only show states with a source of <IP>\n";
-	cout << "	Note, that this must be an IP, hostname matching is "
-		<< "not yet supported.\n\n";
+	cout << "	Note, that this must be an IP, hostname matching is"
+		<< " not yet supported.\n\n";
 	cout << "  -S, --srcpt-filter <port>\n";
 	cout << "	Only show states with a source port of <port>\n\n";
 	cout << "  -t, --totals\n";
 	cout << "	Toggle display of totals\n\n";
-	cout << "See man iptstate(8) for more information.\n";
+	cout << "See man iptstate(8) or the interactive help for more"
+		<< " information.\n";
 	exit(0);
 }
 
 /*
  * Resolve hostnames
  */
-void resolve(const in_addr &ip, string &name, unsigned int &size)
+void resolve_names(table_t &entry, max_t &max)
 {
-	struct hostent* hostinfo = NULL;
+	unsigned int size = 0;
+
+	resolve_host(entry.src,entry.sname);
+	resolve_host(entry.dst,entry.dname);
+	resolve_port(entry.srcpt,entry.spname,entry.proto);
+	resolve_port(entry.dstpt,entry.dpname,entry.proto);
+
+	size = entry.sname.size() + entry.spname.size() + 1;
+	if (size > max.src)
+		max.src = size;
+
+	size = entry.dname.size() + entry.dpname.size() + 1;
+	if (size > max.dst)
+		max.dst = size;
+
+}
+void resolve_host(const in_addr &ip, string &name)
+{
+	struct hostent *hostinfo = NULL;
 
 	if ((hostinfo = gethostbyaddr((char *)&ip,sizeof(ip), AF_INET))
 			!= NULL) {
 		name = hostinfo->h_name;
-		size = name.size();
 	} else {
-		string str = inet_ntoa(ip);
-		size = str.size();
-		//this else is here for troubleshooting
-		//herror("gethostbyaddr");
+		name = inet_ntoa(ip);
+	}
+}
+
+void resolve_port(const int &port, string &name, const string &proto)
+{
+	struct servent *portinfo = NULL;
+
+	if ((portinfo = getservbyport(htons(port),proto.c_str())) != NULL) {
+		name = portinfo->s_name;
+	} else {
+		ostringstream buf;
+		buf.str("");
+		buf << port;
+		name = buf.str();
 	}
 }
 
@@ -1943,15 +2560,15 @@ void resolve(const in_addr &ip, string &name, unsigned int &size)
 void truncate(table_t &table, const max_t &max, const flags_t &flags)
 {
 	int length;
-	if (table.sname.size() + digits(table.srcpt) + 1 > max.src) {
-		length = max.src - 1 - digits(table.srcpt);
+	if (table.sname.size() + table.spname.size() + 1 > max.src) {
+		length = max.src - 1 - table.spname.size();
 		table.sname = table.sname.substr(0,length);
 		if (flags.tag_truncate)
 			table.sname[table.sname.size()-1] = '+';
 	}
 
-	if (table.dname.size() + digits(table.dstpt) + 1 > max.dst) {
-		length = max.dst - 1 - digits(table.dstpt);
+	if (table.dname.size() + table.dpname.size() + 1 > max.dst) {
+		length = max.dst - 1 - table.dpname.size();
 		table.dname = table.dname.substr(0,length);
 		if (flags.tag_truncate)
 			table.dname[0] = '+';
@@ -2036,6 +2653,26 @@ int dname_sort(const void *a, const void *b)
 	}
 	return -sort_factor;
 }
+#ifndef IPTSTATE_USE_PROC
+int bytes_sort(const void *a, const void *b)
+{
+	if(((table_t *)a)->bytes == ((table_t *)b)->bytes) {
+		return 0;
+	} else if (((table_t *)a)->bytes > ((table_t *)b)->bytes) {
+		return sort_factor;
+	}
+	return -sort_factor;
+}
+int packets_sort(const void *a, const void *b)
+{
+	if(((table_t *)a)->packets == ((table_t *)b)->packets) {
+		return 0;
+	} else if (((table_t *)a)->packets > ((table_t *)b)->packets) {
+		return sort_factor;
+	}
+	return -sort_factor;
+}
+#endif
 
 /*
  * Start-up for curses environment
@@ -2079,13 +2716,17 @@ static WINDOW* start_curses(flags_t &flags)
 		init_pair(3,COLOR_RED,COLOR_BLACK);
 		// for prompts
 		init_pair(4,COLOR_BLACK,COLOR_RED);
+		// for the currently selected row
+		init_pair(5,COLOR_BLACK,COLOR_GREEN);
+		init_pair(6,COLOR_BLACK,COLOR_YELLOW);
+		init_pair(7,COLOR_BLACK,COLOR_RED);
 	} else {
 		flags.nocolor = true;
 	}
 
 	if (!flags.noscroll) {
 		getmaxyx(stdscr,y,x);
-		return newpad(MAXCONS,x);
+		return newpad(NLINES,x);
 	}
 	return stdscr;
 }
@@ -2159,7 +2800,7 @@ void switch_scroll(flags_t &flags, WINDOW *&mainwin)
 		erase();
 		// build pad
 		wmove(mainwin,0,0);
-		mainwin = newpad(MAXCONS,x);
+		mainwin = newpad(NLINES,x);
 		wmove(mainwin,0,0);
 		keypad(mainwin,1);
 		halfdelay(1);
@@ -2315,6 +2956,45 @@ void kill_handler(int sig)
 }
 
 /*
+ * Initialize the max_t structure with some sane defaults. We'll grow
+ * them later as needed.
+ */
+void initialize_maxes(max_t &max, flags_t &flags)
+{
+	/*
+	 * For NO lookup:
+	 * src/dst IP can be no bigger than 21 chars:
+	 *    IP (max of 15) + colon (1) + port (max of 5) = 21
+	 *
+	 * For lookup:
+	 * if it's a name, we start with the width of the header, and we can
+	 * grow from there as needed.
+	 */
+	if (flags.lookup) {
+		max.src = 6;
+		max.dst = 11;
+	} else {
+		max.src = max.dst = 21;
+	}
+	/*
+	 * The proto header is 5, so we can't drop below 6.
+	 */
+	max.proto = 5;
+	/*
+	 * "ESTABLISHED" is generally the longest state, we almost always have
+	 * several, so we'll start with this. It also looks really bad if state
+	 * is changing size a lot, so we start with a common minumum.
+	 */
+	max.state = 11;
+	// TTL we statically make 7: xxx:xx:xx
+	max.ttl = 9;
+
+	// Start with something sane
+	max.bytes = 2;
+	max.packets = 2;
+}
+
+/*
  * The actual work of handling a resize.
  */
 void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
@@ -2351,10 +3031,79 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 	 */
 	refresh();
 	getmaxyx(stdscr,ssize.y,ssize.x);
-	win = newpad(MAXCONS,ssize.x);
+	win = newpad(NLINES,ssize.x);
 	keypad(win,true);
 	wmove(win,0,0);
 
 	return;
 }
+
+#ifndef IPTSTATE_USE_PROC
+/*
+ * Take in a 'curr' value, and delete a given conntrack
+ */
+void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
+{
+	struct nfct_handle *cth;
+	struct nf_conntrack *ct;
+	cth = nfct_open(CONNTRACK, 0);
+	ct = nfct_new();
+	int ret;
+	string response;
+	string src = inet_ntoa(entry.src);
+	string dst = inet_ntoa(entry.dst);
+
+	ostringstream msg;
+	msg.str("");
+	msg << "Deleting state: ";
+	if (entry.proto == "tcp" || entry.proto == "udp") {
+		msg << src << ":" << entry.srcpt
+			<< " -> " << dst << ":" << entry.dstpt;
+	} else {
+		msg << src << " -> " << dst;
+	}
+	msg << " -- Are you sure? (y/n)";
+	get_input(win,response,msg.str(),flags);
+
+	if (response != "y" && response != "Y" && response != "yes" &&
+		response != "YES" && response != "Yes") {
+		c_warn(win,"NOT deleting state.",flags);
+		return;
+	}
+
+	nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, AF_INET);
+
+	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_SRC, entry.src.s_addr);
+	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_DST, entry.dst.s_addr);
+
+	nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO,
+			getprotobyname(entry.proto.c_str())->p_proto);
+
+	if (entry.proto == "tcp" || entry.proto == "udp") {
+		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC,
+			htons(entry.srcpt));
+		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST,
+			htons(entry.dstpt));
+	} else if (entry.proto == "icmp") {
+		string type, code, id, tmp;
+		split('/',entry.state,type,tmp);
+		split(' ',tmp,code,tmp);
+		split('(',tmp,tmp,id);
+		split(')',id,id,tmp);
+
+		nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, atoi(type.c_str()));
+		nfct_set_attr_u8(ct, ATTR_ICMP_CODE, atoi(code.c_str()));
+		nfct_set_attr_u16(ct, ATTR_ICMP_ID, atoi(id.c_str()));
+	}
+
+	ret = nfct_query(cth, NFCT_Q_DESTROY, ct);
+	if (ret < 0) {
+		string msg = "Failed to delete state: ";
+		msg += strerror(errno);
+		c_warn(win, msg.c_str(), flags);
+	}
+
+}
+#endif
+
 

@@ -1,35 +1,40 @@
 IPTSTATE CONTRIBUTIONS
 
-IPTState is written and maintained by Phil Dibowitz <phil@ipom.com>
+IPTState is written and maintained by Phil Dibowitz <phil AT ipom DOT com>
 I originally wrote the software not planning on releasing it - I wanted
 a feature similar to IP Filter's StateTop when I was using Linux. I
-decided to release it. It's become much bigger than I expected in just a
+decided to release it. It became much bigger than I expected in just a
 month.
+
+IPTState wouldn't be where it is today without many other people. This is
+an attempt to credit and thank them.
 
 IDEA
 Darren Reed wrote IP Filter.
 Frank Volf wrote the Statetop code for IP Filter.
 
 PACKAGERS
-Garrick Staples is the maintainer of the IPTState package for Mandrake.
-Brian Nelson is the maintainer of the IPTState package for Debian.
-Bruce Locke is the maintainer of the IPTState package for Gentoo.
-Cristian Ionescu-Idbohrn is the maintainer of the IPTState package for
-floppyfw.  
-Roland Illig is the maintainer of the IPTState package for pkgsrc.
-Bruce Smith is the maintainer of the IPTState package for Devil Linux.
-Warren Togami is the maintainer of the IPTState package for Fedora Linux.
-twoerner@redhat.com is the maintainer of the IPTState package for Redhat Linux.
+Mandriva:     Garrick Staples
+Debian:       Brian Nelson
+Gentoo:       Eldad Zack
+ALT Linux:    Victor Forsyuk 
+floppyfw:     Cristian Ionescu-Idbohrn
+pkgsrc:       Roland Illig
+Devil Linux:  Bruce Smith
+Fedora:       Warren Togami
+Redhat Linux: twoerner@redhat.com
+OpenEmbedded: Jamie Lenehen
+ArchLinux (community repo): Andrea Zucchelli
+ipcop:        Franck Bourdonnec
 
 OTHER
 Some people who helped me get this project started were Jullian Gomez, 
-my fellow USCLUG'ers, and my friend Sanjay.
+my fellow USCLUG'ers (Ted Faber in particular), and my friend Sanjay.
 
 BY VERSION
 Other contributions follow based on version. If you contributed something
 and you are not listed here, let me know, it's easy to forget to list
 people. Also note that if you're in the Changelog, you may not be here:
-
 
 2.1
 - Thanks to Brian Nelson for find the -sSdD bug quickly before everyone
@@ -52,14 +57,11 @@ lists.
 - Todd Lyons pointed out snprintf's in printline function should allow
 an extra char so as not to cut off newlines.
 
-
 1.2.1
 - Thanks to Martin Geisler for pointing out the typo in the man page
 
-
 1.2.0
 - Thanks to Garrick for all your help troubleshooting and beta testing.
-
 
 1.1.0
 - Beat Bolli sent in a large patch that was a reference to finish up much
@@ -75,10 +77,9 @@ over output.
 - Many others made patches that did some of the above things in countless
 ways...
 
-
 1.0.1
 - Thanks to Garrick Staples for the .spec file
 
 Phil Dibowitz
-phil@ipom.com
+phil AT ipom DOT com
 

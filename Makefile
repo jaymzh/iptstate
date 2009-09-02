@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2002 - 2006 Phil Dibowitz.
+# Copyright (C) 2002 - 2007 Phil Dibowitz.
 #
 # See iptstate.cc for copyright info
 #
-# Makefile for IPTState verion 2.1
+# Makefile for IPTState
 #
 
 ### USERS CAN CHANGE STUFF HERE
@@ -19,14 +19,21 @@ MAN?=$(PREFIX)/share/man
 CXX?= g++
 CXXFLAGS?= -g -Wall -O2
 CXXFILES?= iptstate.cc
-LIBS?= -lncurses
+
+# THIS IS FOR NORMAL COMPILATION
+LIBS?= -lncurses -lnetfilter_conntrack
+CPPFLAGS=
+# IF YOU WANT TO NOT USE libnetfilter_conntrack, comment out the above
+# two lines and uncomment these
+#LIBS?= -lncurses
+#CPPFLAGS= -DIPTSTATE_USE_PROC
 
 ### YOU SHOULDN'T NEED TO CHANGE ANYTHING BELOW THIS
 
 all:	iptstate
 
 
-iptstate:	iptstate.cc
+iptstate: iptstate.cc Makefile
 	@\
 	echo "+------------------------------------------------------------+" ;\
 	echo "| Welcome to IP Tables State by Phil Dibowitz                |" ;\
@@ -40,9 +47,9 @@ iptstate:	iptstate.cc
 	echo "|                                                            |" ;\
 	echo "| Let's compile...                                           |" ;\
 	echo "+------------------------------------------------------------+" ;\
-	echo ""
+	echo "";
 
-	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS)
+	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS) $(CPPFLAGS)
 	@touch iptstate
 
 	@\
@@ -50,10 +57,9 @@ iptstate:	iptstate.cc
 	echo "All done. Do 'make install' as root and you should be set to go!" ;\
 	echo ""
 
-
 strip:	iptstate
 	$(STRIP) iptstate
-	@touch .strip
+	@touch strip
 
 
 install:
