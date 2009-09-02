@@ -40,22 +40,25 @@
  *
  */ 
 
+#include <cerrno>
+#include <cmath>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <sstream>
-#include <stdlib.h>
-#include <string.h>
-#include <ncurses.h>
-#include <signal.h>
-#include <unistd.h>
-#include <errno.h>
-#include <time.h>
+
+// There are no C++-ified versions of these.
+#include <arpa/inet.h>
 #include <getopt.h>
 #include <netdb.h>
-#include <arpa/inet.h>
-#include <math.h>
+#include <ncurses.h>
+#include <unistd.h>
+
 #ifndef IPTSTATE_USE_PROC
 extern "C" {
 	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
