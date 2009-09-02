@@ -55,22 +55,15 @@
 // There are no C++-ified versions of these.
 #include <arpa/inet.h>
 #include <getopt.h>
+extern "C" {
+  #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+};
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
-
-#ifndef IPTSTATE_USE_PROC
-extern "C" {
-	#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-};
-#else
-	#warning "Compiling in backwards compatability proc mode. This is DEPRECATED and support for this will be removed in the future!"
-	#define CONNTRACK "/proc/net/ip_conntrack"
-#endif
 using namespace std;
 
 #define VERSION "2.2.1+CVS"
-/* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
  * speaking the ncurses pad is this many lines long, but since ncurses
@@ -107,15 +100,9 @@ using namespace std;
 #define SORT_PROTO 4
 #define SORT_STATE 5
 #define SORT_TTL 6
-#ifndef IPTSTATE_USE_PROC
-  #define SORT_BYTES 7
-  #define SORT_PACKETS 8
-  // This should ALWAYS the same as the above.
-  #define SORT_MAX 8
-#else
-  // This should ALWAYS the same as the above.
-  #define SORT_MAX 6
-#endif
+#define SORT_BYTES 7
+#define SORT_PACKETS 8
+#define SORT_MAX 8
 
 /*
  * GLOBAL CONSTANTS
@@ -127,7 +114,6 @@ using namespace std;
 int sort_factor = 1;
 bool need_resize = false;
 
-#ifndef IPTSTATE_USE_PROC
 /* shameless stolen from libnetfilter_conntrack_tcp.c */
 static const char *states[] = {
         "NONE",
@@ -141,7 +127,6 @@ static const char *states[] = {
         "CLOSE",
         "LISTEN"
 };
-#endif
 
 /*
  * STRUCTS
@@ -174,7 +159,6 @@ struct filters_t {
 struct max_t {
 	unsigned int src, dst, proto, state, ttl, bytes, packets;
 };
-#ifndef IPTSTATE_USE_PROC
 struct hook_data {
 	vector<table_t> *stable;
 	flags_t *flags;
@@ -182,7 +166,6 @@ struct hook_data {
 	counters_t *counts;
 	const filters_t *filters;
 };
-#endif
 
 /*
  * FUNCTIONS
@@ -192,11 +175,9 @@ struct hook_data {
 void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max);
-#ifndef IPTSTATE_USE_PROC
 int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 			void *tmp);
 void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags);
-#endif
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		vector<table_t> &stable, string &sorting);
 void print_headers(const flags_t &flags, const string &format,
@@ -290,9 +271,7 @@ max.src = max.dst = max.proto = max.state = max.ttl = 0;
 px = py = 0;
 
 static struct option long_options[] = {
-#ifndef IPTSTATE_USE_PROC
 	{"counters", no_argument , 0, 'C'},
-#endif
 	{"dst-filter", required_argument, 0, 'd'},
 	{"dstpt-filter", required_argument, 0, 'D'},
 	{"help", no_argument, 0, 'h'},
@@ -316,13 +295,8 @@ static struct option long_options[] = {
 int option_index = 0;
 
 // Command Line Arguments
-#ifndef IPTSTATE_USE_PROC
 while ((tmpint = getopt_long(argc,argv,"Cd:D:hlmcoLfpR:r1b:s:S:tv",long_options,
 				&option_index)) != EOF) {
-#else
-while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:tv",long_options,
-				&option_index)) != EOF) {
-#endif
 	switch (tmpint) {
 		case 0:
 			/* Apparently this test is needed?! Seems lame! */
@@ -342,12 +316,10 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:tv",long_options,
 			 */
 
 			break;
-#ifndef IPTSTATE_USE_PROC
 		// --counters
 		case 'C':
 			flags.counters = true;
 			break;
-#endif
 		// --dst-filter
 		case 'd':
 			if (optarg == NULL)
@@ -432,14 +404,12 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:tv",long_options,
 				sortby=SORT_STATE;
 			else if (*optarg == 't')
 				sortby=SORT_TTL;
-#ifndef IPTSTATE_USE_PROC
 			else if (*optarg == 'b')
 				sortby=SORT_BYTES;
 			else if (*optarg == 'P')
 				sortby=SORT_PACKETS;
 			if (!flags.counters)
 				sortby=SORT_SRC;
-#endif
 			break;
 		// --single
 		case '1':
@@ -632,13 +602,11 @@ while(1) {
 				if (has_colors())
 					flags.nocolor = !flags.nocolor;
 				break;
-#ifndef IPTSTATE_USE_PROC
 			case 'C':
 				flags.counters = !flags.counters;
 				if (sortby >= SORT_BYTES)
 					sortby = SORT_BYTES-1;
 				break;
-#endif
 			case 'h':
 				interactive_help(sorting,flags,filters);
 				break;
@@ -666,11 +634,9 @@ while(1) {
 			case 'b':
 				if (sortby < SORT_MAX) {
 					sortby++;
-#ifndef IPTSTATE_USE_PROC
 					if (!flags.counters
 					    && sortby >= SORT_BYTES)
 						sortby = 0;
-#endif
 				} else {
 					sortby = 0;
 				}
@@ -679,14 +645,10 @@ while(1) {
 				if (sortby > 0) {
 					sortby--;
 				} else {
-#ifndef IPTSTATE_USE_PROC
 					if (flags.counters)
 						sortby=SORT_MAX;
 					else
 						sortby=SORT_BYTES-1;
-#else
-					sortby=SORT_MAX;
-#endif
 				}
 				break;
 			case 't':
@@ -787,11 +749,9 @@ while(1) {
 				wmove(mainwin,0,0);
 				wclrtoeol(mainwin);
 				break;
-#ifndef IPTSTATE_USE_PROC
 			case 'x':
 				delete_state(mainwin, stable[curr_state], flags);
 				break;
-#endif
 			/*
 			 * Window navigation
 			 */
@@ -1002,7 +962,6 @@ return(0);
  * to the conntrack callback function.
  */
 
-#ifndef IPTSTATE_USE_PROC
 void build_table(flags_t &flags, const filters_t &filters,
 		vector<table_t> &stable, counters_t &counts,
 		max_t &max)
@@ -1240,217 +1199,6 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	return NFCT_CB_CONTINUE;
 }
 
-#else
-void build_table(flags_t &flags, const filters_t &filters,
-		vector<table_t> &stable, counters_t &counts,
-		max_t &max)
-{
-
-	/*
-	 * Variables
-	 */
-
-	// Temporary strings for holding/formatting/etc.
-	string line, mins, secs, hrs, tmpstring;
-	/*
-	 * These are ascii representations of various fields we parse in
-	 * before they get converted to in_addr/int/etc.
-	 */
-	string src, dst, srcpt, dstpt, proto, code, type, state, ttl;
-	/*
-	 * snprintf() require a real char*, unfortunately - this is just
-	 * for formatting the TTL.
-	 */
-	char ttlc[11];
-	int seconds=0, minutes=0, hours=0;
-	// this is the array we parse the line into
-	vector<string> fields(MAXFIELDS);
-	struct protoent* pe = NULL;
-	table_t entry;
-
-	/*
-	 * Initialization
-	 */
-	stable.clear();
-	counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped
-		= 0;
-
-	// Open the file
-	ifstream input(CONNTRACK);
-	if (!input.is_open()) {
-		if (!flags.single)
-			end_curses();
-		cerr << "ERROR: Couldn't open " << CONNTRACK <<
-			": " << strerror(errno) << endl;
-		exit(2);
-	}
-
-	while (getline(input,line) && stable.size() < MAXCONS) {
-
-		/*
-		 * Clear the entry
-		 */
-		entry.sname = "";
-		entry.dname = "";
-		entry.srcpt = 0;
-		entry.dstpt = 0;
-		entry.proto = "";
-		entry.ttl = "";
-		entry.state = "";
-
-		/* 
-		 * BEGIN PARSING
-		 */
-		splita(' ',line,fields);
-
-		/*
-		 * First, we read stuff into the array that's always in the
-		 * same place regardless of protocol
-		 */
-
-		/*
-		 * Get the protocol number from field[1]
-		 * We don't want to get it from field[0] because
-		 * ip_conntrack doesn't seem to support this field
-		 * for anything other than tcp, udp, and icmp
-		 */
-		if ((pe = getprotobynumber(atoi(fields[1].c_str()))) == NULL) {
-			entry.proto = "unknown";
-		} else {
-			entry.proto = pe->p_name;
-		}
-				
-		// ttl
-		seconds = atoi(fields[2].c_str());
-		minutes = seconds/60;
-		hours = minutes/60;
-		minutes = minutes%60;
-		seconds = seconds%60;
-		// Format it with snprintf and store it in the table
-		snprintf(ttlc,11,"%3i:%02i:%02i",hours,minutes,seconds);
-		entry.ttl = ttlc; 
-
-		// OK, proto dependent stuff
-		if (entry.proto == "tcp") {
-			/*
-			 * Split each field into the part we don't care about
-			 * (tmpstring), and the part we do (src,dst, etc...)
-			 */
-			split('=',fields[4],tmpstring,src);
-			split('=',fields[5],tmpstring,dst);
-			split('=',fields[6],tmpstring,srcpt);
-			split('=',fields[7],tmpstring,dstpt);
-			split('=',fields[3],tmpstring,state);
-	
-			// Do some conversions...
-			inet_aton(src.c_str(), &(entry.src));
-			inet_aton(dst.c_str(), &(entry.dst));
-			entry.srcpt = atoi(srcpt.c_str());
-			entry.dstpt = atoi(dstpt.c_str());
-			entry.state = state;
-
-			counts.tcp++;
-			
-		} else if (entry.proto == "udp") {
-			split('=',fields[3],tmpstring,src);
-			split('=',fields[4],tmpstring,dst);
-			split('=',fields[5],tmpstring,srcpt);
-			split('=',fields[6],tmpstring,dstpt);
-
-			inet_aton(src.c_str(), &(entry.src));
-			inet_aton(dst.c_str(), &(entry.dst));
-			entry.srcpt = atoi(srcpt.c_str());
-			entry.dstpt = atoi(dstpt.c_str());
-			entry.state = "";
-
-			counts.udp++;
-
-		} else if (entry.proto == "icmp") {
-			split('=',fields[3],tmpstring,src);
-			split('=',fields[4],tmpstring,dst);
-			split('=',fields[5],tmpstring,type);
-			split('=',fields[6],tmpstring,code);
-
-			inet_aton(src.c_str(), &entry.src);
-			inet_aton(dst.c_str(), &entry.dst);
-			entry.state = type + "/" + code;
-
-			counts.icmp++;
-
-		} else {
-			// If we're not TCP, or UDP
-			// There's no ports involved
-			split('=',fields[3],tmpstring,src);
-			split('=',fields[4],tmpstring,dst);
-
-			inet_aton(src.c_str(), &entry.src);
-			inet_aton(dst.c_str(), &entry.dst);
-
-			/*
-			 * If the protocol is something else, then we need
-			 * to know how long the name of the protocol is so
-			 * we can format accordingly later.
-			 */
-			if (entry.proto.size() > max.proto)
-				max.proto = entry.proto.size();
-
-			counts.other++;
-
-		}
-
-		/*
-		 * FILTERING
-		 */
-
-		if (flags.skiplb && (src == "127.0.0.1")) {
-			counts.skipped++;
-			continue;
-		}
-
-		if (flags.skipdns && (dstpt == "53")) {
-			counts.skipped++;
-			continue;
-		}
-
-		if (flags.filter_src && (src != filters.src)) {
-			counts.skipped++;
-			continue;
-		}
-
-		if (flags.filter_srcpt && (srcpt != filters.srcpt)) {
-			counts.skipped++;
-			continue;
-		}
-
-		if (flags.filter_dst && (dst != filters.dst)) {
-			counts.skipped++;
-			continue;
-		}
-
-		if (flags.filter_dstpt && (dstpt != filters.dstpt)) {
-			counts.skipped++;
-			continue; 
-		}
-
-		/*
-		 * RESOLVE AND TRUNCATE
-		 */
-
-		// Resolve Names if we need to
-		if (flags.lookup)
-			resolve_names(entry, max);
-
-		/*
-		 * Add this to the array
-		 */
-		stable.push_back(entry);
-
-	} // end while (getline)
-	input.close(); // close the ip_conntrack
-
-}
-#endif
-
 /*
  * This sorts the table based on the current sorting preference
  */
@@ -1514,7 +1262,6 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 			sorting = "TTL";
 			break;
 
-#ifndef IPTSTATE_USE_PROC
 		case SORT_BYTES:
 			qsort(&(stable[0]),stable.size(),sizeof(table_t),
 					bytes_sort);
@@ -1526,7 +1273,6 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 					packets_sort);
 			sorting = "Packets";
 			break;
-#endif
 
 		default:
 			//we should never get here
@@ -1891,11 +1637,7 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	 *
 	 * If the screen is bigger than this, we deal with it below.
 	 */
-#ifndef IPTSTATE_USE_PROC
 	unsigned int maxrows = 41;
-#else
-	unsigned int maxrows = 39;
-#endif
 	unsigned int maxcols = 80;
 
 	/*
@@ -2058,12 +1800,10 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tUse colors");
 
-#ifndef IPTSTATE_USE_PROC
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  C");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tToggle display of bytes/packets counters");
-#endif
 
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  b");
@@ -2150,13 +1890,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,"\tToggle display of totals");
 
-#ifndef IPTSTATE_USE_PROC
 	wattron(helpwin,A_BOLD);
 	mvwaddstr(helpwin,y++,x,"  x");
 	wattroff(helpwin,A_BOLD);
 	waddstr(helpwin,
 		"\tDelete the currently highlighted state from netfilter");
-#endif
 
 	y++;
 
@@ -2451,10 +2189,8 @@ void help()
 	cout << "Usage: iptstate [<options>]\n\n";
 	cout << "  -c, --no-color\n";
 	cout << "	Toggle color-code by protocol\n\n";
-#ifndef IPTSTATE_USE_PROC
 	cout << "  -C, --counters\n";
 	cout << "	Toggle display of bytes/packets counters\n\n";
-#endif
 	cout << "  -d, --dst-filter <IP>\n";
 	cout << "	Only show states with a destination of <IP>\n";
 	cout << "	Note, that this must be an IP, hostname matching is"
@@ -2653,7 +2389,6 @@ int dname_sort(const void *a, const void *b)
 	}
 	return -sort_factor;
 }
-#ifndef IPTSTATE_USE_PROC
 int bytes_sort(const void *a, const void *b)
 {
 	if(((table_t *)a)->bytes == ((table_t *)b)->bytes) {
@@ -2672,7 +2407,6 @@ int packets_sort(const void *a, const void *b)
 	}
 	return -sort_factor;
 }
-#endif
 
 /*
  * Start-up for curses environment
@@ -3038,7 +2772,6 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 	return;
 }
 
-#ifndef IPTSTATE_USE_PROC
 /*
  * Take in a 'curr' value, and delete a given conntrack
  */
@@ -3104,6 +2837,4 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 	}
 
 }
-#endif
-
 

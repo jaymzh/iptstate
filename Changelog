@@ -2,6 +2,7 @@ CVS
 - Fix includes
 - Add --version (closes bug 2792918)
 - Some minor code abstractions
+- Remove old /proc based code
 
 2.2.1
 - Released 03/18/07

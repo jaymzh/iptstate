@@ -23,10 +23,6 @@ CXXFILES?= iptstate.cc
 # THIS IS FOR NORMAL COMPILATION
 LIBS?= -lncurses -lnetfilter_conntrack
 CPPFLAGS=
-# IF YOU WANT TO NOT USE libnetfilter_conntrack, comment out the above
-# two lines and uncomment these
-#LIBS?= -lncurses
-#CPPFLAGS= -DIPTSTATE_USE_PROC
 
 ### YOU SHOULDN'T NEED TO CHANGE ANYTHING BELOW THIS
 
