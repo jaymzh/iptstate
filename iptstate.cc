@@ -290,12 +290,12 @@ static struct option long_options[] = {
 	{"srcpt-filter", required_argument, 0, 'S'},
 	{"totals", no_argument, 0, 't'},
 	{"version", no_argument, 0, 'v'},
-	{0,0,0,0}
+	{0, 0, 0,0}
 };
 int option_index = 0;
 
 // Command Line Arguments
-while ((tmpint = getopt_long(argc,argv,"Cd:D:hlmcoLfpR:r1b:s:S:tv",long_options,
+while ((tmpint = getopt_long(argc, argv, "Cd:D:hlmcoLfpR:r1b:s:S:tv", long_options,
 				&option_index)) != EOF) {
 	switch (tmpint) {
 		case 0:
@@ -464,7 +464,7 @@ if (rate < 0 || rate > 60) {
 static WINDOW *mainwin = NULL;
 if (!flags.single) {
 	mainwin = start_curses(flags);
-	keypad(mainwin,true);
+	keypad(mainwin, true);
 }
 
 /*
@@ -472,7 +472,7 @@ if (!flags.single) {
  * unless they use single run mode
  * in which case, we'll deal with that down below
  */
-while(1) {
+while (1) {
 
 	/*
 	 * We get the screensize_t up-front so we can die if the screen doesn't
@@ -501,7 +501,7 @@ while(1) {
 	initialize_maxes(max, flags);
 
 	// Build our table
-	build_table(flags,filters,stable,counts,max);
+	build_table(flags, filters, stable, counts, max);
 
 	/*
 	 * Now that we have the new table, make sure our page/cursor positions
@@ -536,11 +536,11 @@ while(1) {
 	if (flags.counters && stable.size() > 0 && stable[0].bytes == 0) {
 		prompt = "Counters requested, but not enabled in the kernel!";
 		flags.counters = 0;
-		c_warn(mainwin,prompt,flags);
+		c_warn(mainwin, prompt, flags);
 	}
 
 	// Sort our table
-	sort_table(sortby,flags.lookup,sort_factor,stable,sorting);
+	sort_table(sortby, flags.lookup, sort_factor, stable, sorting);
 
 	/*
 	 * From here on out 'max' is no longer "the maximum size of this field
@@ -550,13 +550,13 @@ while(1) {
 	 * BTW, we do "get_size" again here incase the window changed while we
 	 * were off parsing and sorting data.
 	 */
-	determine_format(mainwin,max,ssize,format,flags);
+	determine_format(mainwin, max, ssize, format, flags);
 
 	/*
 	 * Now we print out the table in whichever format we're configured for
 	 */
-	print_table(stable,flags,format,sorting,filters,counts,ssize,max,
-			mainwin,curr_state);
+	print_table(stable, flags, format, sorting, filters, counts, ssize, max,
+			mainwin, curr_state);
 
 	// Exit if we're only supposed to run once
 	if (flags.single)
@@ -566,7 +566,7 @@ while(1) {
 	if (flags.noscroll) {
 		refresh();
 	} else {
-		prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+		prefresh(mainwin, py, px, 0, 0, ssize.y-1, ssize.x-1);
 	}
 
 	//check for key presses for one second
@@ -582,7 +582,7 @@ while(1) {
 		switch (tmpint) {
 			// This is ^L
 			case 12:
-				handle_resize(mainwin,flags,ssize);
+				handle_resize(mainwin, flags, ssize);
 				break;
 			/*
 			 * This is at the top because the rest are in
@@ -608,7 +608,7 @@ while(1) {
 					sortby = SORT_BYTES-1;
 				break;
 			case 'h':
-				interactive_help(sorting,flags,filters);
+				interactive_help(sorting, flags, filters);
 				break;
 			case 'l':
 				flags.lookup = !flags.lookup;
@@ -626,7 +626,7 @@ while(1) {
 				flags.skiplb = !flags.skiplb;
 				break;
 			case 'p':
-				switch_scroll(flags,mainwin);
+				switch_scroll(flags, mainwin);
 				break;
 			case 'r':
 				sort_factor = -sort_factor;
@@ -660,7 +660,7 @@ while(1) {
 			case 'd':
 				prompt = "New Destination Filter? (leave blank";
 				prompt += " for none): ";
-				get_input(mainwin,tmpstring,prompt,flags);
+				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "") {
 					flags.filter_dst = false;
 					filters.dst = "";
@@ -668,7 +668,7 @@ while(1) {
 					if (!check_ip(tmpstring.c_str())) {
 						prompt = "Invalid IP,";
 						prompt += " ignoring!";
-						c_warn(mainwin,prompt,flags);
+						c_warn(mainwin, prompt, flags);
 					} else {
 						flags.filter_dst = true;
 						filters.dst = tmpstring;
@@ -678,7 +678,7 @@ while(1) {
 			case 'D':
 				prompt = "New dstpt filter? (leave blank for";
 				prompt += " none): ";
-				get_input(mainwin,tmpstring,prompt,flags);
+				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "") {
 					flags.filter_dstpt = false;
 					filters.dstpt = "";
@@ -686,24 +686,24 @@ while(1) {
 					if (!check_ip(tmpstring.c_str())) {
 						prompt = "Invalid IP,";
 						prompt += " ignoring!";
-						c_warn(mainwin,prompt,flags);
+						c_warn(mainwin, prompt, flags);
 					} else {
 						flags.filter_dstpt = true;
 						filters.dstpt = tmpstring;
 					}
 				}
-				wmove(mainwin,0,0);
+				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
 				break;
 			case 'R':
 				prompt = "Rate: ";
-				get_input(mainwin,tmpstring,prompt,flags);
+				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring != "") {
 					int i = atoi(tmpstring.c_str());
 					if (i < 1) {
 						prompt = "Invalid rate,";
 						prompt += " ignoring!";
-						c_warn(mainwin,prompt,flags);
+						c_warn(mainwin, prompt, flags);
 					} else {
 						rate = i;
 					}
@@ -712,7 +712,7 @@ while(1) {
 			case 's':
 				prompt = "New src filter? (leave blank for";
 				prompt += " none): ";
-				get_input(mainwin,tmpstring,prompt,flags);
+				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "")  {
 					flags.filter_src = false;
 					filters.src = "";
@@ -720,19 +720,19 @@ while(1) {
 					if (!check_ip(tmpstring.c_str())) {
 						prompt = "Invalid IP,";
 						prompt += " ignoring!";
-						c_warn(mainwin,prompt,flags);
+						c_warn(mainwin, prompt, flags);
 					} else {
 						flags.filter_src = true;
 						filters.src = tmpstring;
 					}
 				}
-				wmove(mainwin,0,0);
+				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
 				break;
 			case 'S':
 				prompt = "New srcpt filter? (leave blank for";
 				prompt += " none): ";
-				get_input(mainwin,tmpstring,prompt,flags);
+				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "") {
 					flags.filter_srcpt = false;
 					filters.srcpt = "";
@@ -740,13 +740,13 @@ while(1) {
 					if (!check_ip(tmpstring.c_str())) {
 						prompt = "Invalid IP,";
 						prompt += " ignoring!";
-						c_warn(mainwin,prompt,flags);
+						c_warn(mainwin, prompt, flags);
 					} else {
 						flags.filter_srcpt = true;
 						filters.srcpt = tmpstring;
 					}
 				}
-				wmove(mainwin,0,0);
+				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
 				break;
 			case 'x':
@@ -791,7 +791,8 @@ while(1) {
 				 */
 				if (curr_state < stable.size()-1)
 					curr_state++;
-				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(mainwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_UP:
 			case 'k':
@@ -830,12 +831,13 @@ while(1) {
 				 *  OR we need to scroll up for headers
 				 */
 				if (  (py > 0 && (curr_state+hdrs+1) == (py+1))
-				   || (curr_state == 0 && py > 0              ) )
+				   || (curr_state == 0 && py > 0              ))
 					py--;
 
 				if (curr_state > 0)
 					curr_state--;
-				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(mainwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			// 4 is ^d
 			case 4:
@@ -878,7 +880,8 @@ while(1) {
 				if (curr_state > stable.size()) {
 					curr_state = stable.size();
 				}
-				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(mainwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			// 21 is ^u
 			case 21:
@@ -910,13 +913,15 @@ while(1) {
 				} else {
 					curr_state -= ssize.y;
 				}
-				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(mainwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_HOME:
 				if (flags.noscroll)
 					break;
 				px = py = curr_state = 0;
-				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(mainwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_END:
 				if (flags.noscroll)
@@ -925,7 +930,8 @@ while(1) {
 				if (py < 0)
 					py = 0;
 				curr_state = stable.size();
-				prefresh(mainwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(mainwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 		}
 	}
@@ -933,7 +939,7 @@ while(1) {
 	 * If we got a sigwinch, we need to redraw
 	 */
 	if (need_resize) {
-		handle_resize(mainwin,flags,ssize);
+		handle_resize(mainwin, flags, ssize);
 		need_resize = false;
 	}
 } // end while(1)
@@ -1070,7 +1076,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	minutes = minutes%60;
 	seconds = seconds%60;
 	// Format it with snprintf and store it in the table
-	snprintf(ttlc,11,"%3i:%02i:%02i",hours,minutes,seconds);
+	snprintf(ttlc,11, "%3i:%02i:%02i", hours, minutes, seconds);
 	entry.ttl = ttlc; 
 
 	// Everything has addresses
@@ -1149,7 +1155,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	 * 	it's own function once the other copy of build_table()
 	 * 	is gone.
 	 */
-	if (flags->skiplb && !strcmp(inet_ntoa(entry.src),"127.0.0.1")) {
+	if (flags->skiplb && !strcmp(inet_ntoa(entry.src), "127.0.0.1")) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
@@ -1210,66 +1216,66 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 		// This is ^L
 		case SORT_SRC:
 			if (lookup) {
-				qsort(&(stable[0]),stable.size(),
-						sizeof(table_t),sname_sort);
+				qsort(&(stable[0]), stable.size(),
+						sizeof(table_t), sname_sort);
 				sorting = "SrcName";
 			} else {
-				qsort(&(stable[0]),stable.size(),
-						sizeof(table_t),src_sort);
+				qsort(&(stable[0]), stable.size(),
+						sizeof(table_t), src_sort);
 				sorting = "SrcIP";
 			}
 			break;
 
 		case SORT_SRC_PT:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					srcpt_sort);
 			sorting = "SrcPort";
 			break;
 
 		case SORT_DST:
 			if (lookup) {
-				qsort(&(stable[0]),stable.size(),
-						sizeof(table_t),dname_sort);
+				qsort(&(stable[0]), stable.size(),
+						sizeof(table_t), dname_sort);
 				sorting = "DstName";
 			} else {
-				qsort(&(stable[0]),stable.size(),
-						sizeof(table_t),dst_sort);
+				qsort(&(stable[0]), stable.size(),
+						sizeof(table_t), dst_sort);
 				sorting = "DstIP";
 			}
 			break;
 
 		case SORT_DST_PT:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					dstpt_sort);
 			sorting = "DstPort";
 			break;
 
 		case SORT_PROTO:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					proto_sort);
 			sorting = "Prt";
 			break;
 
 		case SORT_STATE:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					state_sort);
 			sorting = "State";
 			break;
 
 		case SORT_TTL:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					ttl_sort);
 			sorting = "TTL";
 			break;
 
 		case SORT_BYTES:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					bytes_sort);
 			sorting = "Bytes";
 			break;
 
 		case SORT_PACKETS:
-			qsort(&(stable[0]),stable.size(),sizeof(table_t),
+			qsort(&(stable[0]), stable.size(), sizeof(table_t),
 					packets_sort);
 			sorting = "Packets";
 			break;
@@ -1294,30 +1300,30 @@ void print_headers(const flags_t &flags, const string &format,
 	if (flags.single) {
 		cout << "IP Tables State Top -- Sort by: " << sorting << endl;
 	} else {
-		wmove(mainwin,0,0);
+		wmove(mainwin, 0, 0);
 		wclrtoeol(mainwin);
-		wmove(mainwin,0,ssize.x/2-15);
-		wattron(mainwin,A_BOLD);
-		wprintw(mainwin,"IPTState - IPTables State Top\n");
+		wmove(mainwin,0, ssize.x/2-15);
+		wattron(mainwin, A_BOLD);
+		wprintw(mainwin, "IPTState - IPTables State Top\n");
 	
-		wprintw(mainwin,"Version: ");
-		wattroff(mainwin,A_BOLD);
-		wprintw(mainwin,"%-13s", VERSION);
+		wprintw(mainwin, "Version: ");
+		wattroff(mainwin, A_BOLD);
+		wprintw(mainwin, "%-13s", VERSION);
 	
-		wattron(mainwin,A_BOLD);
-		wprintw(mainwin,"Sort: ");
-		wattroff(mainwin,A_BOLD);
-		wprintw(mainwin,"%-16s", sorting.c_str());
+		wattron(mainwin, A_BOLD);
+		wprintw(mainwin, "Sort: ");
+		wattroff(mainwin, A_BOLD);
+		wprintw(mainwin, "%-16s", sorting.c_str());
 		
-		wattron(mainwin,A_BOLD);
-		wprintw(mainwin,"b");
-		wattroff(mainwin,A_BOLD);
-		wprintw(mainwin,"%-19s", ": change sorting");
+		wattron(mainwin, A_BOLD);
+		wprintw(mainwin, "b");
+		wattroff(mainwin, A_BOLD);
+		wprintw(mainwin, "%-19s", ": change sorting");
 
-		wattron(mainwin,A_BOLD);
-		wprintw(mainwin,"h");
-		wattroff(mainwin,A_BOLD);
-		wprintw(mainwin,"%-s\n", ": help");
+		wattron(mainwin, A_BOLD);
+		wprintw(mainwin, "h");
+		wattroff(mainwin, A_BOLD);
+		wprintw(mainwin, "%-s\n", ": help");
 	}
 
 	/*
@@ -1325,13 +1331,13 @@ void print_headers(const flags_t &flags, const string &format,
 	 */
 	if (flags.totals) {
 		if (flags.single)
-			printf(TOTALS_FORMAT,table_size+counts.skipped,
-				counts.tcp,counts.udp,counts.icmp,counts.other,
+			printf(TOTALS_FORMAT, table_size+counts.skipped,
+				counts.tcp, counts.udp, counts.icmp, counts.other,
 				counts.skipped);
 		else
-			wprintw(mainwin,TOTALS_FORMAT,
-				table_size+counts.skipped,counts.tcp,
-				counts.udp,counts.icmp,counts.other,
+			wprintw(mainwin, TOTALS_FORMAT,
+				table_size+counts.skipped, counts.tcp,
+				counts.udp, counts.icmp, counts.other,
 				counts.skipped);
 	}
 
@@ -1344,17 +1350,17 @@ void print_headers(const flags_t &flags, const string &format,
 		if (flags.single) {
 			printf("Filters: ");
 		} else {
-			wattron(mainwin,A_BOLD);
-			wprintw(mainwin,"Filters: ");
-			wattroff(mainwin,A_BOLD);
+			wattron(mainwin, A_BOLD);
+			wprintw(mainwin, "Filters: ");
+			wattroff(mainwin, A_BOLD);
 		}
 
 		bool printed_a_filter = false;
 
 		if (flags.filter_src) {
 			(flags.single)
-				? printf("src: %s",filters.src.c_str())
-				: wprintw(mainwin,"src: %s",
+				? printf("src: %s", filters.src.c_str())
+				: wprintw(mainwin, "src: %s",
 						filters.src.c_str());
 			printed_a_filter = true;
 		}
@@ -1362,11 +1368,11 @@ void print_headers(const flags_t &flags, const string &format,
 			if (printed_a_filter) {
 				(flags.single)
 					? printf(", ")
-					: waddstr(mainwin,", ");
+					: waddstr(mainwin, ", ");
 			}
 			(flags.single)
-				? printf("sport: %s",filters.srcpt.c_str())
-				:  wprintw(mainwin,"sport: %s",
+				? printf("sport: %s", filters.srcpt.c_str())
+				:  wprintw(mainwin, "sport: %s",
 						filters.srcpt.c_str());
 			printed_a_filter = true;
 		}
@@ -1374,11 +1380,11 @@ void print_headers(const flags_t &flags, const string &format,
 			if (printed_a_filter) {
 				(flags.single)
 					? printf(", ")
-					: waddstr(mainwin,", ");
+					: waddstr(mainwin, ", ");
 			}
 			(flags.single)
-				? printf("dst: %s",filters.dst.c_str())
-				: wprintw(mainwin,"dst: %s",
+				? printf("dst: %s", filters.dst.c_str())
+				: wprintw(mainwin, "dst: %s",
 						filters.dst.c_str());
 			printed_a_filter = true;
 		}
@@ -1386,17 +1392,17 @@ void print_headers(const flags_t &flags, const string &format,
 			if (printed_a_filter) {
 				(flags.single)
 					? printf(", ")
-					: waddstr(mainwin,", ");
+					: waddstr(mainwin, ", ");
 			}
 			(flags.single)
-				? printf("dport: %s",filters.dstpt.c_str())
-				: wprintw(mainwin,"dport: %s",
+				? printf("dport: %s", filters.dstpt.c_str())
+				: wprintw(mainwin, "dport: %s",
 						filters.dstpt.c_str());
 			printed_a_filter = true;
 		}
 		(flags.single)
 			? printf("\n")
-			: wprintw(mainwin,"\n");
+			: wprintw(mainwin, "\n");
 	}
 
 	/*
@@ -1404,22 +1410,22 @@ void print_headers(const flags_t &flags, const string &format,
 	 */
 	if (flags.single) {
 		if (flags.counters) {
-			printf(format.c_str(),"Source","Destination","Prt",
-				"State","TTL","B","P");
+			printf(format.c_str(), "Source", "Destination", "Prt",
+				"State", "TTL", "B", "P");
 		} else {
-			printf(format.c_str(),"Source","Destination","Prt",
-				"State","TTL");
+			printf(format.c_str(), "Source", "Destination", "Prt",
+				"State", "TTL");
 		}
 	} else {
-		wattron(mainwin,A_BOLD);
+		wattron(mainwin, A_BOLD);
 		if (flags.counters) {
-			wprintw(mainwin,format.c_str(),"Source","Destination",
-				"Prt", "State","TTL","B","P");
+			wprintw(mainwin, format.c_str(), "Source", "Destination",
+				"Prt", "State", "TTL", "B", "P");
 		} else {
-			wprintw(mainwin,format.c_str(),"Source","Destination",
-				"Prt","State","TTL");
+			wprintw(mainwin, format.c_str(), "Source", "Destination",
+				"Prt", "State", "TTL");
 		}
-		wattroff(mainwin,A_BOLD);
+		wattroff(mainwin, A_BOLD);
 	}
 
 }
@@ -1447,7 +1453,7 @@ void print_table(vector<table_t> &stable, const flags_t &flags,
 	 */
 	unsigned int limit = (stable.size() < NLINES) ? stable.size() : NLINES;
 	for (unsigned int tmpint=0; tmpint < limit; tmpint++) {
-		printline(stable[tmpint],flags,format,max,mainwin,
+		printline(stable[tmpint], flags, format, max, mainwin,
 			(curr == tmpint));
 		if (!flags.single && flags.noscroll && 
 				(tmpint >= ssize.y-4 ||
@@ -1659,26 +1665,26 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	 * newlines and expect it to work. Cause, well, it doesn't. You have
 	 * to tell it where on the pad to print, specifically.
 	 */
-	unsigned int x,y;
+	unsigned int x, y;
 	x = y = 0;
 
 	/*
 	 * The current position on the pad we're showing (top left)
 	 */
-	unsigned int px,py;
+	unsigned int px, py;
 	px = py = 0;
 
 	/*
 	 * As noted above, we create the biggest pad we might need
 	 */
 	static WINDOW *helpwin;
-	helpwin = newpad(maxrows,maxcols);
+	helpwin = newpad(maxrows, maxcols);
 
 	/*
 	 * Create a box, and then add one to "x" and "y" so we don't write
 	 * on the line, 
 	 */
-	box(helpwin,ACS_VLINE,ACS_HLINE);
+	box(helpwin, ACS_VLINE, ACS_HLINE);
 	x++;
 	y++;
 
@@ -1686,16 +1692,16 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	/*
 	 * we want arrow keys to work
 	 */
-	keypad(helpwin,true);
+	keypad(helpwin, true);
 
 	// Prolly not needed
-	wmove(helpwin,0,0);
+	wmove(helpwin, 0, 0);
 
 	// Print opener
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"IPTState ");
-	waddstr(helpwin,VERSION);
-	wattroff(helpwin,A_BOLD);
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "IPTState ");
+	waddstr(helpwin, VERSION);
+	wattroff(helpwin, A_BOLD);
 	// this is \n
 	y++;
 
@@ -1703,207 +1709,207 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	// border
 	x++;
 
-	string nav = "Up/j, Down/k, Left/h, Right/l, PageUp/^u, PageDown/^d,";
+	string nav = "Up/j, Down/k, Left/h, Right/l, PageUp/^u, PageDown/^d, ";
 	nav += " Home, or End";
 	// Print instructions first
-	mvwaddstr(helpwin,y++,x,"Navigation:");
-	mvwaddstr(helpwin,y++,x,nav.c_str());
-	mvwaddstr(helpwin,y++,x,"  Press any other key to continue...");
+	mvwaddstr(helpwin, y++, x, "Navigation:");
+	mvwaddstr(helpwin, y++, x, nav.c_str());
+	mvwaddstr(helpwin, y++, x, "  Press any other key to continue...");
 	y++;
 
 	// Print settings
-	mvwaddstr(helpwin,y++,x,"Current settings:");
+	mvwaddstr(helpwin, y++, x, "Current settings:");
 
-	mvwaddstr(helpwin,y++,x,"  Sorting by: ");
-	wattron(helpwin,A_BOLD);
-	waddstr(helpwin,sorting.c_str());
-	wattroff(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Sorting by: ");
+	wattron(helpwin, A_BOLD);
+	waddstr(helpwin, sorting.c_str());
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Dynamic formatting: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Dynamic formatting: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(!flags.staticsize) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Skip loopback states: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Skip loopback states: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(flags.skiplb) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Resolve hostnames: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Resolve hostnames: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(flags.lookup) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Mark truncated hostnames: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Mark truncated hostnames: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(flags.tag_truncate) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Colors: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Colors: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(!flags.nocolor) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Skip outgoing DNS lookup states: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Skip outgoing DNS lookup states: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(flags.skipdns) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Enable scroll: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Enable scroll: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(!flags.noscroll) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Display totals: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Display totals: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(flags.totals) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
-	mvwaddstr(helpwin,y++,x,"  Display counters: ");
-	wattron(helpwin,A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  Display counters: ");
+	wattron(helpwin, A_BOLD);
 	waddstr(helpwin,(flags.counters) ? "yes" : "no");
-	wattroff(helpwin,A_BOLD);
+	wattroff(helpwin, A_BOLD);
 
 	if (flags.filter_src) {
-		mvwaddstr(helpwin,y++,x,"  Source filter: ");
-		wattron(helpwin,A_BOLD);
-		waddstr(helpwin,filters.src.c_str());
-		wattroff(helpwin,A_BOLD);
+		mvwaddstr(helpwin, y++, x, "  Source filter: ");
+		wattron(helpwin, A_BOLD);
+		waddstr(helpwin, filters.src.c_str());
+		wattroff(helpwin, A_BOLD);
 	}
 	if (flags.filter_dst) {
-		mvwaddstr(helpwin,y++,x,"  Destination filter: ");
-		wattron(helpwin,A_BOLD);
-		waddstr(helpwin,filters.dst.c_str());
-		wattroff(helpwin,A_BOLD);
+		mvwaddstr(helpwin, y++, x, "  Destination filter: ");
+		wattron(helpwin, A_BOLD);
+		waddstr(helpwin, filters.dst.c_str());
+		wattroff(helpwin, A_BOLD);
 	}
 	if (flags.filter_srcpt) {
-		mvwaddstr(helpwin,y++,x,"  Source port filter: ");
-		wattron(helpwin,A_BOLD);
-		waddstr(helpwin,filters.srcpt.c_str());
-		wattroff(helpwin,A_BOLD);
+		mvwaddstr(helpwin, y++, x, "  Source port filter: ");
+		wattron(helpwin, A_BOLD);
+		waddstr(helpwin, filters.srcpt.c_str());
+		wattroff(helpwin, A_BOLD);
 	}
 	if (flags.filter_dstpt) {
-		mvwaddstr(helpwin,y++,x,"  Destination port filter: ");
-		wattron(helpwin,A_BOLD);
-		waddstr(helpwin,filters.dstpt.c_str());
-		wattroff(helpwin,A_BOLD);
+		mvwaddstr(helpwin, y++, x, "  Destination port filter: ");
+		wattron(helpwin, A_BOLD);
+		waddstr(helpwin, filters.dstpt.c_str());
+		wattroff(helpwin, A_BOLD);
 	}
 
 	y++;
 
 	// Print commands
-	mvwaddstr(helpwin,y++,x,"Interactive commands:");
+	mvwaddstr(helpwin, y++, x, "Interactive commands:");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  c");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tUse colors");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  c");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tUse colors");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  C");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle display of bytes/packets counters");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  C");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle display of bytes/packets counters");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  b");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tSort by next column");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  b");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tSort by next column");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  B");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tSort by previous column");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  B");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tSort by previous column");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  d");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tChange destination filter");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  d");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tChange destination filter");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  D");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tChange destination port filter");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  D");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tChange destination port filter");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  f");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle display of loopback states");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  f");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle display of loopback states");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  h");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tDisplay this help message");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  h");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tDisplay this help message");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  l");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle DNS lookups");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  l");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle DNS lookups");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  L");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle display of outgoing DNS states");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  L");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle display of outgoing DNS states");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  m");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle marking truncated hostnames with a '+'");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  m");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle marking truncated hostnames with a '+'");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  o");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle dynamic or old formatting");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  o");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle dynamic or old formatting");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  p");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle scrolling");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  p");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle scrolling");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  q");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tQuit");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  q");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tQuit");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  r");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle reverse sorting");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  r");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle reverse sorting");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  R");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tChange the refresh rate");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  R");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tChange the refresh rate");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  s");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tChange source filter");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  s");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tChange source filter");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  S");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tChange source port filter");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  S");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tChange source port filter");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  t");
-	wattroff(helpwin,A_BOLD);
-	waddstr(helpwin,"\tToggle display of totals");
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  t");
+	wattroff(helpwin, A_BOLD);
+	waddstr(helpwin, "\tToggle display of totals");
 
-	wattron(helpwin,A_BOLD);
-	mvwaddstr(helpwin,y++,x,"  x");
-	wattroff(helpwin,A_BOLD);
+	wattron(helpwin, A_BOLD);
+	mvwaddstr(helpwin, y++, x, "  x");
+	wattroff(helpwin, A_BOLD);
 	waddstr(helpwin,
 		"\tDelete the currently highlighted state from netfilter");
 
 	y++;
 
-	wmove(helpwin,0,0);
+	wmove(helpwin, 0, 0);
 
 	/*
 	 * refresh from wherever we are the pad
 	 * and the top of the window to the bottom of the window.
 	 */
-	prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+	prefresh(helpwin, py, px, 0, 0, ssize.y-1, ssize.x-1);
 	// kill line buffering
 	cbreak();
 	// nodelay with a 0 here causes getch() to block until key is pressed.
@@ -1929,13 +1935,15 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				 */
 				if (py + ssize.y < y)
 					py++;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_UP:
 			case 'k':
 				if (py > 0)
 					py--;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_RIGHT:
 			case 'l':
@@ -1949,23 +1957,27 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				 */
 				if (px + ssize.x < 80)
 					px++;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_LEFT:
 			case 'h':
 				if (px > 0)
 					px--;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_HOME:
 			case KEY_SHOME:
 			case KEY_FIND:
 				px = py = 0;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case KEY_END:
 				py = y-ssize.y;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case 4:
 			case KEY_NPAGE:
@@ -1994,7 +2006,8 @@ void interactive_help(const string &sorting, const flags_t &flags,
 				} else {
 					py += ssize.y;
 				}
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 			case 21:
 			case KEY_PPAGE:
@@ -2014,7 +2027,8 @@ void interactive_help(const string &sorting, const flags_t &flags,
 					py = 0;
 				else
 					py -= ssize.y;
-				prefresh(helpwin,py,px,0,0,ssize.y-1,ssize.x-1);
+				prefresh(helpwin, py, px, 0, 0, ssize.y-1,
+					ssize.x-1);
 				break;
 
 			case 'q':
@@ -2041,10 +2055,10 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 {
 	ostringstream buffer;
 	buffer.str("");
-	string src,dst,b,p;
+	string src, dst, b, p;
 	
 	if (flags.lookup)
-		truncate(table,max,flags);
+		truncate(table, max, flags);
 
 	if (table.proto == "tcp" || table.proto == "udp") {
 		if (flags.lookup && (table.sname != "")) {
@@ -2087,7 +2101,7 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 		if (flags.counters) {
 			printf(format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
-				table.ttl.c_str(), b.c_str(),p.c_str());
+				table.ttl.c_str(), b.c_str(), p.c_str());
 		} else {
 			printf(format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
@@ -2104,21 +2118,21 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 				color = 3;
 			if (curr)
 				color += 4;
-			wattron(mainwin,COLOR_PAIR(color));
+			wattron(mainwin, COLOR_PAIR(color));
 				
 		}
 		if (flags.counters) {
-			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
+			wprintw(mainwin, format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
-				table.ttl.c_str(),b.c_str(),p.c_str());
+				table.ttl.c_str(), b.c_str(), p.c_str());
 		} else {
-			wprintw(mainwin,format.c_str(), src.c_str(), dst.c_str(),
+			wprintw(mainwin, format.c_str(), src.c_str(), dst.c_str(),
 				table.proto.c_str(), table.state.c_str(),
 				table.ttl.c_str());	
 		}
 	
 		if (!flags.nocolor && color != 0)
-			wattroff(mainwin,COLOR_PAIR(color));
+			wattroff(mainwin, COLOR_PAIR(color));
 	}
 }
 
@@ -2129,8 +2143,8 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 void split(char s, string line, string &p1, string &p2)
 {
 	int pos = line.find(s);
-	p1 = line.substr(0,pos);
-	p2 = line.substr(pos+1,line.size()-pos);
+	p1 = line.substr(0, pos);
+	p2 = line.substr(pos+1, line.size()-pos);
 }
 
 /*
@@ -2145,9 +2159,9 @@ void splita(char s, string line, vector<string> &result)
 	temp = line;
 	while ((temp.find(s) != string::npos) && (i < MAXFIELDS-1)){
 		pos = temp.find(s);
-		result[i] = temp.substr(0,pos);
+		result[i] = temp.substr(0, pos);
 		size = temp.size();
-		temp = temp.substr(pos+1,size-pos-1);
+		temp = temp.substr(pos+1, size-pos-1);
 		if (result[i] != "") {
 			i++;
 		}
@@ -2249,10 +2263,10 @@ void resolve_names(table_t &entry, max_t &max)
 {
 	unsigned int size = 0;
 
-	resolve_host(entry.src,entry.sname);
-	resolve_host(entry.dst,entry.dname);
-	resolve_port(entry.srcpt,entry.spname,entry.proto);
-	resolve_port(entry.dstpt,entry.dpname,entry.proto);
+	resolve_host(entry.src, entry.sname);
+	resolve_host(entry.dst, entry.dname);
+	resolve_port(entry.srcpt, entry.spname, entry.proto);
+	resolve_port(entry.dstpt, entry.dpname, entry.proto);
 
 	size = entry.sname.size() + entry.spname.size() + 1;
 	if (size > max.src)
@@ -2267,7 +2281,7 @@ void resolve_host(const in_addr &ip, string &name)
 {
 	struct hostent *hostinfo = NULL;
 
-	if ((hostinfo = gethostbyaddr((char *)&ip,sizeof(ip), AF_INET))
+	if ((hostinfo = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET))
 			!= NULL) {
 		name = hostinfo->h_name;
 	} else {
@@ -2279,7 +2293,7 @@ void resolve_port(const int &port, string &name, const string &proto)
 {
 	struct servent *portinfo = NULL;
 
-	if ((portinfo = getservbyport(htons(port),proto.c_str())) != NULL) {
+	if ((portinfo = getservbyport(htons(port), proto.c_str())) != NULL) {
 		name = portinfo->s_name;
 	} else {
 		ostringstream buf;
@@ -2297,14 +2311,14 @@ void truncate(table_t &table, const max_t &max, const flags_t &flags)
 	int length;
 	if (table.sname.size() + table.spname.size() + 1 > max.src) {
 		length = max.src - 1 - table.spname.size();
-		table.sname = table.sname.substr(0,length);
+		table.sname = table.sname.substr(0, length);
 		if (flags.tag_truncate)
 			table.sname[table.sname.size()-1] = '+';
 	}
 
 	if (table.dname.size() + table.dpname.size() + 1 > max.dst) {
 		length = max.dst - 1 - table.dpname.size();
-		table.dname = table.dname.substr(0,length);
+		table.dname = table.dname.substr(0, length);
 		if (flags.tag_truncate)
 			table.dname[0] = '+';
 	}
@@ -2422,7 +2436,7 @@ int packets_sort(const void *a, const void *b)
  */
 static WINDOW* start_curses(flags_t &flags)
 {
-	int y,x;
+	int y, x;
 	initscr();
 	cbreak();
 	noecho();
@@ -2434,32 +2448,32 @@ static WINDOW* start_curses(flags_t &flags)
 	 * handler.
 	 */
 	// Resize
-	signal(28,winch_handler);
+	signal(28, winch_handler);
 	// Shutdown
-	signal(2,kill_handler);
-	signal(15,kill_handler);
+	signal(2, kill_handler);
+	signal(15, kill_handler);
 
 	if (has_colors()) {
 		start_color();
 		// for tcp
-		init_pair(1,COLOR_GREEN,COLOR_BLACK);
+		init_pair(1, COLOR_GREEN, COLOR_BLACK);
 		// for udp
-		init_pair(2,COLOR_YELLOW,COLOR_BLACK);
+		init_pair(2, COLOR_YELLOW, COLOR_BLACK);
 		// for icmp
-		init_pair(3,COLOR_RED,COLOR_BLACK);
+		init_pair(3, COLOR_RED, COLOR_BLACK);
 		// for prompts
-		init_pair(4,COLOR_BLACK,COLOR_RED);
+		init_pair(4, COLOR_BLACK, COLOR_RED);
 		// for the currently selected row
-		init_pair(5,COLOR_BLACK,COLOR_GREEN);
-		init_pair(6,COLOR_BLACK,COLOR_YELLOW);
-		init_pair(7,COLOR_BLACK,COLOR_RED);
+		init_pair(5, COLOR_BLACK, COLOR_GREEN);
+		init_pair(6, COLOR_BLACK, COLOR_YELLOW);
+		init_pair(7, COLOR_BLACK, COLOR_RED);
 	} else {
 		flags.nocolor = true;
 	}
 
 	if (!flags.noscroll) {
-		getmaxyx(stdscr,y,x);
-		return newpad(NLINES,x);
+		getmaxyx(stdscr, y, x);
+		return newpad(NLINES, x);
 	}
 	return stdscr;
 }
@@ -2526,15 +2540,15 @@ void term_too_small()
  */
 void switch_scroll(flags_t &flags, WINDOW *&mainwin)
 {
-	int x,y;
+	int x, y;
 	if (flags.noscroll) {
-		getmaxyx(stdscr,y,x);
+		getmaxyx(stdscr, y, x);
 		// remove stuff from the bottom window
 		erase();
 		// build pad
-		wmove(mainwin,0,0);
-		mainwin = newpad(NLINES,x);
-		wmove(mainwin,0,0);
+		wmove(mainwin, 0, 0);
+		mainwin = newpad(NLINES, x);
+		wmove(mainwin, 0, 0);
 		keypad(mainwin,1);
 		halfdelay(1);
 	} else {
@@ -2573,15 +2587,15 @@ void get_input(WINDOW *win, string &input, const string &prompt,
 	 */
 	
 	input = "";
-	int x,y;
-	getmaxyx(stdscr,y,x);
-	WINDOW *cmd = subpad(win,1,x,0,0);
+	int x, y;
+	getmaxyx(stdscr, y, x);
+	WINDOW *cmd = subpad(win,1, x, 0, 0);
 	if (!flags.nocolor)
-		wattron(cmd,COLOR_PAIR(4));
-	keypad(cmd,true);
-	wprintw(cmd,prompt.c_str());
+		wattron(cmd, COLOR_PAIR(4));
+	keypad(cmd, true);
+	wprintw(cmd, prompt.c_str());
 	wclrtoeol(cmd);
-	prefresh(cmd,0,0,0,0,0,x);
+	prefresh(cmd, 0, 0, 0, 0, 0, x);
 
 
 	int ch;
@@ -2598,17 +2612,17 @@ void get_input(WINDOW *win, string &input, const string &prompt,
 				if (ch == 7)
 					input = "";
 				if (!flags.nocolor)
-					wattroff(cmd,COLOR_PAIR(4));
+					wattroff(cmd, COLOR_PAIR(4));
 				delwin(cmd);
 				noecho();
-				wmove(win,0,0);
+				wmove(win, 0, 0);
 				return;
 				break;
 			// 8 is shift-backspace - just incase
 			case KEY_BACKSPACE:
 			case 8:
 				if (charcount > 0) {
-					input = input.substr(0,input.size()-1);
+					input = input.substr(0, input.size()-1);
 					wechochar(cmd,'\b');
 					wechochar(cmd,' ');
 					wechochar(cmd,'\b');
@@ -2621,9 +2635,9 @@ void get_input(WINDOW *win, string &input, const string &prompt,
 			default:
 				input += ch;
 				charcount++;
-				wechochar(cmd,ch);
+				wechochar(cmd, ch);
 		}
-		prefresh(cmd,0,0,0,0,0,x);
+		prefresh(cmd, 0, 0, 0, 0, 0, x);
 	}
 }
 
@@ -2639,26 +2653,26 @@ void c_warn(WINDOW *win, const string &warning, const flags_t &flags)
 	 * usually about bad input.
 	 */
 	
-	int x,y;
-	getmaxyx(stdscr,y,x);
-	WINDOW *warn = subpad(win,1,x,0,0);
+	int x, y;
+	getmaxyx(stdscr, y, x);
+	WINDOW *warn = subpad(win,1, x, 0, 0);
 	if (!flags.nocolor)
-		wattron(warn,COLOR_PAIR(4));
-	wprintw(warn,warning.c_str());
-	wprintw(warn," Press any key to continue...");
+		wattron(warn, COLOR_PAIR(4));
+	wprintw(warn, warning.c_str());
+	wprintw(warn, " Press any key to continue...");
 	wclrtoeol(warn);
-	prefresh(warn,0,0,0,0,0,x);
+	prefresh(warn, 0, 0, 0, 0, 0, x);
 	while ((y = getch())) {
 		if (y != ERR) {
 			break;
 		}
-		prefresh(warn,0,0,0,0,0,x);
+		prefresh(warn, 0, 0, 0, 0, 0, x);
 	}
 	if (!flags.nocolor)
-		wattroff(warn,COLOR_PAIR(4));
+		wattroff(warn, COLOR_PAIR(4));
 	delwin(warn);
 	noecho();
-	wmove(win,0,0);
+	wmove(win, 0, 0);
 	return;
 }
 
@@ -2670,7 +2684,7 @@ void winch_handler(int sig)
 	sigset_t mask_set;
 	sigset_t old_set;
 	// Reset signal handler
-	signal(28,winch_handler);
+	signal(28, winch_handler);
 	// ignore this signal for a bit
 	sigfillset(&mask_set);
 	sigprocmask(SIG_SETMASK, &mask_set, &old_set);
@@ -2684,7 +2698,7 @@ void winch_handler(int sig)
 void kill_handler(int sig)
 {
 	end_curses();
-	printf("Caught signal %d, cleaning up.\n",sig);
+	printf("Caught signal %d, cleaning up.\n", sig);
 	exit(0);
 }
 
@@ -2763,10 +2777,10 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 	 * Start up...
 	 */
 	refresh();
-	getmaxyx(stdscr,ssize.y,ssize.x);
-	win = newpad(NLINES,ssize.x);
-	keypad(win,true);
-	wmove(win,0,0);
+	getmaxyx(stdscr, ssize.y, ssize.x);
+	win = newpad(NLINES, ssize.x);
+	keypad(win, true);
+	wmove(win, 0, 0);
 
 	return;
 }
@@ -2795,11 +2809,11 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 		msg << src << " -> " << dst;
 	}
 	msg << " -- Are you sure? (y/n)";
-	get_input(win,response,msg.str(),flags);
+	get_input(win, response, msg.str(), flags);
 
 	if (response != "y" && response != "Y" && response != "yes" &&
 		response != "YES" && response != "Yes") {
-		c_warn(win,"NOT deleting state.",flags);
+		c_warn(win, "NOT deleting state.", flags);
 		return;
 	}
 
@@ -2818,10 +2832,10 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 			htons(entry.dstpt));
 	} else if (entry.proto == "icmp") {
 		string type, code, id, tmp;
-		split('/',entry.state,type,tmp);
-		split(' ',tmp,code,tmp);
-		split('(',tmp,tmp,id);
-		split(')',id,id,tmp);
+		split('/', entry.state, type, tmp);
+		split(' ', tmp, code, tmp);
+		split('(', tmp, tmp, id);
+		split(')', id, id, tmp);
 
 		nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, atoi(type.c_str()));
 		nfct_set_attr_u8(ct, ATTR_ICMP_CODE, atoi(code.c_str()));
