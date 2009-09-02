@@ -66,7 +66,7 @@ extern "C" {
 #endif
 using namespace std;
 
-#define VERSION "2.2.1"
+#define VERSION "2.2.1+CVS"
 /* #define CONNTRACK "/proc/net/ip_conntrack" */
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
@@ -211,6 +211,7 @@ void interactive_help(const string &sorting, const flags_t &flags,
 		const filters_t &filters);
 void printline(table_t &table, const flags_t &flags, const string &format,
 		const max_t &max, WINDOW *mainwin, const bool curr);
+void version();
 
 // General helper functions
 void split(char s, string line, string &p1, string &p2);
@@ -306,16 +307,17 @@ static struct option long_options[] = {
 	{"src-filter", required_argument, 0, 's'},
 	{"srcpt-filter", required_argument, 0, 'S'},
 	{"totals", no_argument, 0, 't'},
+	{"version", no_argument, 0, 'v'},
 	{0,0,0,0}
 };
 int option_index = 0;
 
 // Command Line Arguments
 #ifndef IPTSTATE_USE_PROC
-while ((tmpint = getopt_long(argc,argv,"Cd:D:hlmcoLfpR:r1b:s:S:t",long_options,
+while ((tmpint = getopt_long(argc,argv,"Cd:D:hlmcoLfpR:r1b:s:S:tv",long_options,
 				&option_index)) != EOF) {
 #else
-while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
+while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:tv",long_options,
 				&option_index)) != EOF) {
 #endif
 	switch (tmpint) {
@@ -468,10 +470,16 @@ while ((tmpint = getopt_long(argc,argv,"d:D:hlmcoLfpR:r1b:s:S:t",long_options,
 		case 't':
 			flags.totals = true;
 			break;
+		// --version
+		case 'v':
+			version();
+			exit(0);
+			break;
 		// catch-all
 		default:
 			// getopts should already have printed a message
 			exit(1);
+			break;
 	}
 }
 
@@ -2430,6 +2438,10 @@ bool check_ip(const char *arg)
 /*
  * The help
  */
+void version() {
+	cout << "IPTables State Top Version " << VERSION << endl << endl;
+}
+
 void help()
 {
 	cout << "IPTables State Top Version " << VERSION << endl;
