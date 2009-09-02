@@ -2589,7 +2589,7 @@ void get_input(WINDOW *win, string &input, const string &prompt,
 	input = "";
 	int x, y;
 	getmaxyx(stdscr, y, x);
-	WINDOW *cmd = subpad(win,1, x, 0, 0);
+	WINDOW *cmd = subpad(win, 1, x, 0, 0);
 	if (!flags.nocolor)
 		wattron(cmd, COLOR_PAIR(4));
 	keypad(cmd, true);
@@ -2623,9 +2623,9 @@ void get_input(WINDOW *win, string &input, const string &prompt,
 			case 8:
 				if (charcount > 0) {
 					input = input.substr(0, input.size()-1);
-					wechochar(cmd,'\b');
-					wechochar(cmd,' ');
-					wechochar(cmd,'\b');
+					wechochar(cmd, '\b');
+					wechochar(cmd, ' ');
+					wechochar(cmd, '\b');
 					charcount--;
 				}
 				break;
@@ -2655,7 +2655,7 @@ void c_warn(WINDOW *win, const string &warning, const flags_t &flags)
 	
 	int x, y;
 	getmaxyx(stdscr, y, x);
-	WINDOW *warn = subpad(win,1, x, 0, 0);
+	WINDOW *warn = subpad(win, 1, x, 0, 0);
 	if (!flags.nocolor)
 		wattron(warn, COLOR_PAIR(4));
 	wprintw(warn, warning.c_str());
