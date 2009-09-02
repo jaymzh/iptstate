@@ -3,6 +3,10 @@ CVS
 - Add --version (closes bug 2792918)
 - Some minor code abstractions
 - Remove old /proc based code
+- Dropped "Proto" field minimum width to 3 chars (changing title to "Prt")
+  to make more room for counters
+- If we can't fit counters and there's nothing we can truncate, show a
+  warning and then disable counters rather than messing up the display
 
 2.2.1
 - Released 03/18/07
