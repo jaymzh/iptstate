@@ -14,18 +14,24 @@ Darren Reed wrote IP Filter.
 Frank Volf wrote the Statetop code for IP Filter.
 
 PACKAGERS
-Mandriva:     Garrick Staples
-Debian:       Brian Nelson
-Gentoo:       Eldad Zack
-ALT Linux:    Victor Forsyuk 
-floppyfw:     Cristian Ionescu-Idbohrn
-pkgsrc:       Roland Illig
-Devil Linux:  Bruce Smith
-Fedora:       Warren Togami
-Redhat Linux: twoerner@redhat.com
-OpenEmbedded: Jamie Lenehen
+I'm very grateful to those who package my software. I've tried to list
+maintainers here, but if you're not here, please, let me know and I'll
+add you.
+
+If you package my software _please let me know_, and even more importantly,
+_please_ pass on bugs to me!
+
+Mandriva:      Garrick Staples
+Debian:        Brian Nelson
+Gentoo:        Eldad Zack
+ALT Linux:     Victor Forsyuk 
+floppyfw:      Cristian Ionescu-Idbohrn
+pkgsrc:        Roland Illig
+Devil Linux:   Bruce Smith
+Fedora/RedHat: Warren Togami and Thomas Woerner
+OpenEmbedded:  Jamie Lenehen
 ArchLinux (community repo): Andrea Zucchelli
-ipcop:        Franck Bourdonnec
+ipcop:         Franck Bourdonnec
 
 OTHER
 Some people who helped me get this project started were Jullian Gomez, 
