@@ -35,8 +35,8 @@
  * interface for IP Tables. I've added in the "single run"
  * option since there's no nice way to do that either.
  *
- * NOTE: IF YOU WANT TO PACKAGE THIS SOFTWARE FOR A 
- * LINUX DISTRIBUTION, CONTACT ME!
+ * NOTE: If you are planning on packaging and/or submitting my software for/to
+ * a Linux distribution, I would appreciate a heads up.
  *
  */ 
 
