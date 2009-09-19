@@ -7,6 +7,7 @@ CVS
   to make more room for counters
 - If we can't fit counters and there's nothing we can truncate, show a
   warning and then disable counters rather than messing up the display
+- Some style cleanups
 
 2.2.1
 - Released 03/18/07

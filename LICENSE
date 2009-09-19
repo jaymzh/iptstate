@@ -1,6 +1,6 @@
   IP Tables State (iptstate)
 
-  Copyright (C) 2002 - 2007 Phil Dibowitz
+  Copyright (C) 2002 - 2009 Phil Dibowitz
 
   This software is provided 'as-is', without any express or
   implied warranty. In no event will the authors be held
@@ -23,10 +23,11 @@
 
   -----------------------------------
 
-NOTE: If you are planning on packaging and/or submitting my
-software for/to a Linux Distribution, EMAIL ME FIRST!!!
-There is already an official maintainer for most popular distributions,
-see the CONTRIB file for details.
+NOTE: If you are planning on packaging and/or submitting my software for/to a
+Linux distribution, I would appreciate a heads up.
+
+There is already an official maintainer for most popular distributions, see the
+CONTRIB file for details.
 
 Phil Dibowitz
 phil AT ipom DOT com

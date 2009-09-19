@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2002 - 2007 Phil Dibowitz.
+# Copyright (C) 2002 - 2009 Phil Dibowitz.
 #
 # See iptstate.cc for copyright info
 #
