@@ -1,4 +1,5 @@
-CVS
+2.2.2
+- Released 09/19/09
 - Fix includes
 - Add --version (closes bug 2792918)
 - Some minor code abstractions
