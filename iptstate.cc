@@ -136,7 +136,7 @@ static const char *states[] = {
 struct table_t {
 	string proto, state, ttl, sname, dname, spname, dpname;
 	in_addr src, dst;
-	int srcpt, dstpt, bytes, packets;
+	unsigned long srcpt, dstpt, bytes, packets, s;
 };
 // x/y of the terminal window
 struct screensize_t {
@@ -150,7 +150,7 @@ struct flags_t {
 };
 // Struct 'o counters
 struct counters_t {
-	int total, tcp, udp, icmp, other, skipped;
+	unsigned int total, tcp, udp, icmp, other, skipped;
 };
 // Various filters to be applied pending the right flags in flags_t
 struct filters_t {
@@ -158,7 +158,8 @@ struct filters_t {
 };
 // The max-length of fields in the stable table
 struct max_t {
-	unsigned int src, dst, proto, state, ttl, bytes, packets;
+	unsigned int src, dst, proto, state, ttl;
+	unsigned long long int bytes, packets;
 };
 struct hook_data {
 	vector<table_t> *stable;
@@ -209,7 +210,7 @@ void splita(char s, string line, vector<string> &result)
 /*
  * This determines the length of an integer (i.e. number of digits)
  */
-unsigned int digits(int x)
+unsigned int digits(unsigned long x)
 {
 	return (unsigned int) floor(log10((double)x))+1;
 }
@@ -308,7 +309,7 @@ void resolve_host(const in_addr &ip, string &name)
 	}
 }
 
-void resolve_port(const int &port, string &name, const string &proto)
+void resolve_port(const unsigned int &port, string &name, const string &proto)
 {
 	struct servent *portinfo = NULL;
 
@@ -967,10 +968,11 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	entry.src.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
 	entry.dst.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_DST);
 
-	// Counters
-	entry.bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES);
-	entry.packets = 
-		nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS);
+	// Counters (summary, in + out)
+	entry.bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES) +
+			    nfct_get_attr_u32(ct, ATTR_REPL_COUNTER_BYTES);
+	entry.packets = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS) +
+			    nfct_get_attr_u32(ct, ATTR_REPL_COUNTER_PACKETS);
 
 	if (digits(entry.bytes) > max->bytes) {
 		max->bytes = digits(entry.bytes);
@@ -1056,7 +1058,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	}
 
 	if (flags->filter_srcpt
-	    && (entry.srcpt != atoi(filters->srcpt.c_str()))) {
+	    && (entry.srcpt != (unsigned int)atoi(filters->srcpt.c_str()))) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
@@ -1068,7 +1070,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	}
 
 	if (flags->filter_dstpt
-	    && (entry.dstpt != atoi(filters->dstpt.c_str()))) {
+	    && (entry.dstpt != (unsigned int)atoi(filters->dstpt.c_str()))) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE; 
 	}
