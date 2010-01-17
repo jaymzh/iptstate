@@ -159,7 +159,7 @@ struct filters_t {
 // The max-length of fields in the stable table
 struct max_t {
 	unsigned int src, dst, proto, state, ttl;
-	unsigned long long int bytes, packets;
+	unsigned long bytes, packets;
 };
 struct hook_data {
 	vector<table_t> *stable;
