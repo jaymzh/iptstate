@@ -92,6 +92,8 @@ using namespace std;
 // Options for truncating from the front or the back
 #define TRUNC_FRONT 0
 #define TRUNC_END 1
+// maxlength for string we pass to inet_ntop()
+#define NAMELEN 100
 // Sorting options
 #define SORT_SRC 0
 #define SORT_SRC_PT 1
@@ -135,7 +137,8 @@ static const char *states[] = {
 // One state-table entry
 struct table_t {
 	string proto, state, ttl, sname, dname, spname, dpname;
-	in_addr src, dst;
+	in6_addr src, dst;
+	uint8_t family;
 	unsigned long srcpt, dstpt, bytes, packets, s;
 };
 // x/y of the terminal window
@@ -220,8 +223,9 @@ unsigned int digits(unsigned long x)
  */
 bool check_ip(const char *arg)
 {
-	in_addr tmp_addr;
-	if (inet_aton(arg,&tmp_addr) == 0) {
+	in6_addr tmp_addr;
+	if (inet_pton(AF_INET6, arg, &tmp_addr) == 0 &&
+	    inet_pton(AF_INET, arg, &tmp_addr) == 0) {
 		return false;
 	}
 	return true;
@@ -297,15 +301,16 @@ void help()
 /*
  * Resolve hostnames
  */
-void resolve_host(const in_addr &ip, string &name)
+void resolve_host(const uint8_t &family, const in6_addr &ip, string &name)
 {
 	struct hostent *hostinfo = NULL;
 
-	if ((hostinfo = gethostbyaddr((char *)&ip, sizeof(ip), AF_INET))
+	if ((hostinfo = gethostbyaddr((char *)&ip, sizeof(ip), family))
 			!= NULL) {
 		name = hostinfo->h_name;
 	} else {
-		name = inet_ntoa(ip);
+	        char str[NAMELEN];
+		name = inet_ntop(family, (void *)&ip, str, NAMELEN-1) ;
 	}
 }
 
@@ -327,8 +332,8 @@ void resolve_names(table_t &entry, max_t &max)
 {
 	unsigned int size = 0;
 
-	resolve_host(entry.src, entry.sname);
-	resolve_host(entry.dst, entry.dname);
+	resolve_host(entry.family, entry.src, entry.sname);
+	resolve_host(entry.family, entry.dst, entry.dname);
 	resolve_port(entry.srcpt, entry.spname, entry.proto);
 	resolve_port(entry.dstpt, entry.dpname, entry.proto);
 
@@ -370,13 +375,13 @@ void truncate(table_t &table, const max_t &max, const flags_t &flags)
  */
 int src_sort(const void *a, const void *b)
 {
-	return sort_factor * memcmp(&((table_t *)a)->src, &((table_t *)b)->src,
-			sizeof(uint32_t));
+	return sort_factor *memcmp(&((table_t *)a)->src,
+		&((table_t *)b)->src, sizeof(in6_addr));
 }
 int dst_sort(const void *a, const void *b)
 {
-	return sort_factor * memcmp(&((table_t *)a)->dst, &((table_t *)b)->dst,
-			sizeof(uint32_t));
+	return sort_factor * memcmp(&((table_t *)a)->dst,
+		&((table_t *)b)->dst, sizeof(in6_addr));
 }
 int srcpt_sort(const void *a, const void *b)
 {
@@ -840,8 +845,10 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 	ct = nfct_new();
 	int ret;
 	string response;
-	string src = inet_ntoa(entry.src);
-	string dst = inet_ntoa(entry.dst);
+	char str[NAMELEN];
+	string src, dst;
+	src = inet_ntop(entry.family, (void *)&entry.src, str, NAMELEN-1);
+	dst = inet_ntop(entry.family, (void *)&entry.dst, str, NAMELEN-1);
 
 	ostringstream msg;
 	msg.str("");
@@ -861,10 +868,15 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
 		return;
 	}
 
-	nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, AF_INET);
+	nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, entry.family);
 
-	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_SRC, entry.src.s_addr);
-	nfct_set_attr_u32(ct, ATTR_ORIG_IPV4_DST, entry.dst.s_addr);
+	if (entry.family == AF_INET) {
+		nfct_set_attr(ct, ATTR_ORIG_IPV4_SRC, (void *)&entry.src.s6_addr);
+		nfct_set_attr(ct, ATTR_ORIG_IPV4_DST, (void *)&entry.dst.s6_addr);
+	} else if (entry.family == AF_INET6) {
+		nfct_set_attr(ct, ATTR_ORIG_IPV6_SRC, (void *)&entry.src.s6_addr);
+		nfct_set_attr(ct, ATTR_ORIG_IPV6_DST, (void *)&entry.dst.s6_addr);
+	}
 
 	nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO,
 			getprotobyname(entry.proto.c_str())->p_proto);
@@ -964,9 +976,19 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	snprintf(ttlc,11, "%3i:%02i:%02i", hours, minutes, seconds);
 	entry.ttl = ttlc; 
 
+	entry.family = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO);
 	// Everything has addresses
-	entry.src.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
-	entry.dst.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_DST);
+	if (entry.family == AF_INET) {
+		memcpy(entry.src.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC),
+			sizeof(uint8_t[16]));
+		memcpy(entry.dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV4_DST),
+			sizeof(uint8_t[16]));
+	} else if (entry.family == AF_INET6) {
+		memcpy(entry.src.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC),
+			sizeof(uint8_t[16]));
+		memcpy(entry.dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST),
+			sizeof(uint8_t[16]));
+	}
 
 	// Counters (summary, in + out)
 	entry.bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES) +
@@ -1041,7 +1063,11 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	 * 	it's own function once the other copy of build_table()
 	 * 	is gone.
 	 */
-	if (flags->skiplb && !strcmp(inet_ntoa(entry.src), "127.0.0.1")) {
+	char src[NAMELEN], dst[NAMELEN];
+        inet_ntop(entry.family, (void*)&entry.src, src, NAMELEN-1);
+       	inet_ntop(entry.family, (void*)&entry.dst, dst, NAMELEN-1);
+	if (flags->skiplb && !strcmp(src, "127.0.0.1")
+	    && !strcmp(src, "::1/128")) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
@@ -1051,8 +1077,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 		return NFCT_CB_CONTINUE;
 	}
 
-	if (flags->filter_src
-	    && (inet_ntoa(entry.src) != filters->src)) {
+	if (flags->filter_src && strcmp(src, filters->src.c_str())) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
@@ -1063,8 +1088,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 		return NFCT_CB_CONTINUE;
 	}
 
-	if (flags->filter_dst
-	    && (inet_ntoa(entry.dst) != filters->dst)) {
+	if (flags->filter_dst && strcmp(dst, filters->dst.c_str())) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
@@ -1107,7 +1131,7 @@ void build_table(flags_t &flags, const filters_t &filters,
 	int res=0;
 	vector<string> fields(MAXFIELDS);
 	static struct nfct_handle *cth;
-	u_int8_t family = AF_INET;
+	u_int8_t family = AF_UNSPEC;
 
 	/*
 	 * This is the ugly struct for the nfct hook, that holds pointers to
@@ -1153,7 +1177,6 @@ void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
 {
 
 	switch (sortby) {
-		// This is ^L
 		case SORT_SRC:
 			if (lookup) {
 				qsort(&(stable[0]), stable.size(),
@@ -1379,6 +1402,7 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 	ostringstream buffer;
 	buffer.str("");
 	string src, dst, b, p;
+	char tmp[NAMELEN];
 	
 	if (flags.lookup)
 		truncate(table, max, flags);
@@ -1387,14 +1411,18 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 		if (flags.lookup && (table.sname != "")) {
 			buffer << table.sname << ":" << table.spname;
 		} else {
-			buffer << inet_ntoa(table.src) << ":" << table.srcpt;
+			buffer << inet_ntop(table.family,
+					(void*)&table.src, tmp, NAMELEN-1)
+				<< ":" << table.srcpt;
 		}
 		src = buffer.str();
 		buffer.str("");
 		if (flags.lookup && (table.dname != "")) {
 			buffer << table.dname << ":" << table.dpname;
 		} else {
-			buffer << inet_ntoa(table.dst) << ":" << table.dstpt;
+			buffer << inet_ntop(table.family,
+					(void*)&table.dst, tmp, NAMELEN-1)
+				<< ":" << table.dstpt;
 		}
 		dst = buffer.str();
 		buffer.str("");
@@ -1402,12 +1430,14 @@ void printline(table_t &table, const flags_t &flags, const string &format,
 		if (flags.lookup && (table.sname != "")) {
 			src = table.sname;
 		} else {
-			src = inet_ntoa(table.src);
+			src = inet_ntop(table.family, (void*)&table.src, tmp,
+			                NAMELEN-1);
 		}
 		if (flags.lookup && (table.dname != "")) {
 			dst = table.dname;
 		} else {
-			dst = inet_ntoa(table.dst);
+			dst = inet_ntop(table.family, (void*)&table.dst, tmp,
+			                NAMELEN-1);
 		}
 	}
 
@@ -2184,11 +2214,6 @@ int main(int argc, char *argv[])
 			 */
 			if (optarg == NULL)
 				break;
-			if (!check_ip(optarg)) {
-				cerr << "Invalid IP address: " << optarg
-					<< endl;
-				exit(1);
-			}
 			flags.filter_dstpt = true;
 			filters.dstpt = optarg;
 			break;
@@ -2273,11 +2298,6 @@ int main(int argc, char *argv[])
 		case 'S':
 			if (optarg == NULL)
 				break;
-			if (!check_ip(optarg)) {
-				cerr << "Invalid IP address: " << optarg
-					<< endl;
-				exit(1);
-			}
 			flags.filter_srcpt = true;
 			filters.srcpt = optarg;
 			break;
@@ -2528,14 +2548,8 @@ int main(int argc, char *argv[])
 					flags.filter_dstpt = false;
 					filters.dstpt = "";
 				} else {
-					if (!check_ip(tmpstring.c_str())) {
-						prompt = "Invalid IP,";
-						prompt += " ignoring!";
-						c_warn(mainwin, prompt, flags);
-					} else {
-						flags.filter_dstpt = true;
-						filters.dstpt = tmpstring;
-					}
+					flags.filter_dstpt = true;
+					filters.dstpt = tmpstring;
 				}
 				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
@@ -2582,14 +2596,8 @@ int main(int argc, char *argv[])
 					flags.filter_srcpt = false;
 					filters.srcpt = "";
 				} else {
-					if (!check_ip(tmpstring.c_str())) {
-						prompt = "Invalid IP,";
-						prompt += " ignoring!";
-						c_warn(mainwin, prompt, flags);
-					} else {
-						flags.filter_srcpt = true;
-						filters.srcpt = tmpstring;
-					}
+					flags.filter_srcpt = true;
+					filters.srcpt = tmpstring;
 				}
 				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
