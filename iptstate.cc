@@ -157,7 +157,9 @@ struct counters_t {
 };
 // Various filters to be applied pending the right flags in flags_t
 struct filters_t {
-	string src, dst, srcpt, dstpt;
+	in6_addr src, dst;
+	uint8_t srcfam, dstfam;
+	unsigned long srcpt, dstpt;
 };
 // The max-length of fields in the stable table
 struct max_t {
@@ -221,14 +223,20 @@ unsigned int digits(unsigned long x)
 /*
  * Check to ensure an IP is valid
  */
-bool check_ip(const char *arg)
+bool check_ip(const char *arg, in6_addr *addr, uint8_t *family)
 {
-	in6_addr tmp_addr;
-	if (inet_pton(AF_INET6, arg, &tmp_addr) == 0 &&
-	    inet_pton(AF_INET, arg, &tmp_addr) == 0) {
-		return false;
+	int ret;
+	ret = inet_pton(AF_INET6, arg, addr);
+	if (ret) {
+		*family = AF_INET6;
+		return true;
 	}
-	return true;
+	ret = inet_pton(AF_INET, arg, addr);
+	if (ret) {
+		*family = AF_INET;
+		return true;
+	}
+	return false;
 }
 
 /*
@@ -1052,22 +1060,19 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	 */
 
 	/*
-	 * FIXME: There's some awesome stupidity here. But it's here
-	 * 	for a reason. filters.* should be real ints
-	 * 	or inet_addrs as necessary, but if we do that
-	 * 	we'll break the #ifdef'd code below that's there for
-	 * 	backwards compatibility. Once we nuke that code
-	 * 	we make this MUCH cleaner.
-	 *
-	 * FIXME: Also, filtering can probably be pulled out to
-	 * 	it's own function once the other copy of build_table()
-	 * 	is gone.
+	 * FIXME: Filtering needs to be pulled into it's own function.
 	 */
-	char src[NAMELEN], dst[NAMELEN];
-        inet_ntop(entry.family, (void*)&entry.src, src, NAMELEN-1);
-       	inet_ntop(entry.family, (void*)&entry.dst, dst, NAMELEN-1);
-	if (flags->skiplb && !strcmp(src, "127.0.0.1")
-	    && !strcmp(src, "::1/128")) {
+	struct in_addr lb;
+	struct in6_addr lb6;
+	inet_pton(AF_INET, "127.0.0.1", &lb);
+	inet_pton(AF_INET6, "::1", &lb6);
+	size_t entrysize = entry.family == AF_INET
+		? sizeof(in_addr)
+		: sizeof(in6_addr);
+	if (flags->skiplb &&
+	    (entry.family == AF_INET
+	     ? !memcmp(&entry.src, &lb, sizeof(in_addr)) 
+	     : !memcmp(&entry.src, &lb6, sizeof(in6_addr)))) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
@@ -1077,24 +1082,26 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 		return NFCT_CB_CONTINUE;
 	}
 
-	if (flags->filter_src && strcmp(src, filters->src.c_str())) {
+	if (flags->filter_src &&
+	    (memcmp(&entry.src, &(filters->src), entrysize))) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
 
 	if (flags->filter_srcpt
-	    && (entry.srcpt != (unsigned int)atoi(filters->srcpt.c_str()))) {
+	    && (entry.srcpt != filters->srcpt)) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
 
-	if (flags->filter_dst && strcmp(dst, filters->dst.c_str())) {
+	if (flags->filter_dst &&
+	    (memcmp(&entry.dst, &(filters->dst), entrysize))) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE;
 	}
 
 	if (flags->filter_dstpt
-	    && (entry.dstpt != (unsigned int)atoi(filters->dstpt.c_str()))) {
+	    && (entry.dstpt != filters->dstpt)) {
 		counts->skipped++;
 		return NFCT_CB_CONTINUE; 
 	}
@@ -1307,6 +1314,7 @@ void print_headers(const flags_t &flags, const string &format,
 	/*
 	 * If any, print filters
 	 */
+	char tmp[NAMELEN];
 	if (flags.filter_src || flags.filter_dst || flags.filter_srcpt
 			|| flags.filter_dstpt) {
 
@@ -1321,10 +1329,11 @@ void print_headers(const flags_t &flags, const string &format,
 		bool printed_a_filter = false;
 
 		if (flags.filter_src) {
+			inet_ntop(filters.srcfam, &filters.src, tmp,
+				NAMELEN-1);
 			(flags.single)
-				? printf("src: %s", filters.src.c_str())
-				: wprintw(mainwin, "src: %s",
-						filters.src.c_str());
+				? printf("src: %s", tmp)
+				: wprintw(mainwin, "src: %s", tmp);
 			printed_a_filter = true;
 		}
 		if (flags.filter_srcpt) {
@@ -1334,9 +1343,9 @@ void print_headers(const flags_t &flags, const string &format,
 					: waddstr(mainwin, ", ");
 			}
 			(flags.single)
-				? printf("sport: %s", filters.srcpt.c_str())
-				:  wprintw(mainwin, "sport: %s",
-						filters.srcpt.c_str());
+				? printf("sport: %lu", filters.srcpt)
+				:  wprintw(mainwin, "sport: %lu",
+						filters.srcpt);
 			printed_a_filter = true;
 		}
 		if (flags.filter_dst) {
@@ -1345,10 +1354,11 @@ void print_headers(const flags_t &flags, const string &format,
 					? printf(", ")
 					: waddstr(mainwin, ", ");
 			}
+			inet_ntop(filters.dstfam, &filters.dst, tmp,
+				NAMELEN-1);
 			(flags.single)
-				? printf("dst: %s", filters.dst.c_str())
-				: wprintw(mainwin, "dst: %s",
-						filters.dst.c_str());
+				? printf("dst: %s", tmp)
+				: wprintw(mainwin, "dst: %s", tmp);
 			printed_a_filter = true;
 		}
 		if (flags.filter_dstpt) {
@@ -1358,9 +1368,9 @@ void print_headers(const flags_t &flags, const string &format,
 					: waddstr(mainwin, ", ");
 			}
 			(flags.single)
-				? printf("dport: %s", filters.dstpt.c_str())
-				: wprintw(mainwin, "dport: %s",
-						filters.dstpt.c_str());
+				? printf("dport: %lu", filters.dstpt)
+				: wprintw(mainwin, "dport: %lu",
+						filters.dstpt);
 			printed_a_filter = true;
 		}
 		(flags.single)
@@ -1828,28 +1838,35 @@ void interactive_help(const string &sorting, const flags_t &flags,
 	waddstr(helpwin,(flags.counters) ? "yes" : "no");
 	wattroff(helpwin, A_BOLD);
 
+	char tmp[NAMELEN];
 	if (flags.filter_src) {
+		inet_ntop(filters.srcfam, &filters.src, tmp,
+			filters.srcfam == AF_INET ? sizeof(in_addr)
+				: sizeof(in6_addr));
 		mvwaddstr(helpwin, y++, x, "  Source filter: ");
 		wattron(helpwin, A_BOLD);
-		waddstr(helpwin, filters.src.c_str());
+		waddstr(helpwin, tmp);
 		wattroff(helpwin, A_BOLD);
 	}
 	if (flags.filter_dst) {
+		inet_ntop(filters.dstfam, &filters.dst, tmp,
+			filters.dstfam == AF_INET ? sizeof(in_addr)
+				: sizeof(in6_addr));
 		mvwaddstr(helpwin, y++, x, "  Destination filter: ");
 		wattron(helpwin, A_BOLD);
-		waddstr(helpwin, filters.dst.c_str());
+		waddstr(helpwin, tmp);
 		wattroff(helpwin, A_BOLD);
 	}
 	if (flags.filter_srcpt) {
 		mvwaddstr(helpwin, y++, x, "  Source port filter: ");
 		wattron(helpwin, A_BOLD);
-		waddstr(helpwin, filters.srcpt.c_str());
+		wprintw(helpwin, "%lu", filters.srcpt);
 		wattroff(helpwin, A_BOLD);
 	}
 	if (flags.filter_dstpt) {
 		mvwaddstr(helpwin, y++, x, "  Destination port filter: ");
 		wattron(helpwin, A_BOLD);
-		waddstr(helpwin, filters.dstpt.c_str());
+		wprintw(helpwin, "%lu", filters.dstpt);
 		wattroff(helpwin, A_BOLD);
 	}
 
@@ -2138,7 +2155,8 @@ int main(int argc, char *argv[])
 	ssize.x = ssize.y = 0;
 	counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped
 		= 0;
-	filters.src = filters.dst = filters.srcpt = filters.dstpt = "";
+	filters.src = filters.dst = in6addr_any;
+	filters.srcpt = filters.dstpt = 0;
 	max.src = max.dst = max.proto = max.state = max.ttl = 0;
 	px = py = 0;
 
@@ -2197,13 +2215,12 @@ int main(int argc, char *argv[])
 			if (optarg == NULL)
 				break;
 			// See check_ip() note above
-			if (!check_ip(optarg)) {
+			if (!check_ip(optarg, &filters.dst, &filters.dstfam)) {
 				cerr << "Invalid IP address: " << optarg
 					<< endl;
 				exit(1);
 			}
 			flags.filter_dst = true;
-			filters.dst = optarg;
 			break;
 		// --dstpt-filter
 		case 'D':
@@ -2215,7 +2232,7 @@ int main(int argc, char *argv[])
 			if (optarg == NULL)
 				break;
 			flags.filter_dstpt = true;
-			filters.dstpt = optarg;
+			filters.dstpt = atoi(optarg);
 			break;
 		// --help
 		case 'h':
@@ -2286,20 +2303,19 @@ int main(int argc, char *argv[])
 		case 's':
 			if (optarg == NULL)
 				break;
-			if (!check_ip(optarg)) {
+			if (!check_ip(optarg, &filters.src, &filters.srcfam)) {
 				cerr << "Invalid IP address: " << optarg
 					<< endl;
 				exit(1);
 			}
 			flags.filter_src = true;
-			filters.src = optarg;
 			break;
 		// --srcpt-filter
 		case 'S':
 			if (optarg == NULL)
 				break;
 			flags.filter_srcpt = true;
-			filters.srcpt = optarg;
+			filters.srcpt = atoi(optarg);
 			break;
 		// --totals
 		case 't':
@@ -2528,15 +2544,16 @@ int main(int argc, char *argv[])
 				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "") {
 					flags.filter_dst = false;
-					filters.dst = "";
+					filters.dst = in6addr_any;
 				} else {
-					if (!check_ip(tmpstring.c_str())) {
+					if (!check_ip(tmpstring.c_str(),
+							&filters.dst,
+							&filters.dstfam)) {
 						prompt = "Invalid IP,";
 						prompt += " ignoring!";
 						c_warn(mainwin, prompt, flags);
 					} else {
 						flags.filter_dst = true;
-						filters.dst = tmpstring;
 					}
 				}
 				break;
@@ -2546,10 +2563,10 @@ int main(int argc, char *argv[])
 				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "") {
 					flags.filter_dstpt = false;
-					filters.dstpt = "";
+					filters.dstpt = 0;
 				} else {
 					flags.filter_dstpt = true;
-					filters.dstpt = tmpstring;
+					filters.dstpt = atoi(tmpstring.c_str());
 				}
 				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
@@ -2574,15 +2591,16 @@ int main(int argc, char *argv[])
 				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "")  {
 					flags.filter_src = false;
-					filters.src = "";
+					filters.src = in6addr_any;
 				} else {
-					if (!check_ip(tmpstring.c_str())) {
+					if (!check_ip(tmpstring.c_str(),
+							&filters.src,
+							&filters.srcfam)) {
 						prompt = "Invalid IP,";
 						prompt += " ignoring!";
 						c_warn(mainwin, prompt, flags);
 					} else {
 						flags.filter_src = true;
-						filters.src = tmpstring;
 					}
 				}
 				wmove(mainwin, 0, 0);
@@ -2594,10 +2612,10 @@ int main(int argc, char *argv[])
 				get_input(mainwin, tmpstring, prompt, flags);
 				if (tmpstring == "") {
 					flags.filter_srcpt = false;
-					filters.srcpt = "";
+					filters.srcpt = 0;
 				} else {
 					flags.filter_srcpt = true;
-					filters.srcpt = tmpstring;
+					filters.srcpt = atoi(tmpstring.c_str());
 				}
 				wmove(mainwin, 0, 0);
 				wclrtoeol(mainwin);
