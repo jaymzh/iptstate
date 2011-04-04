@@ -1,8 +1,12 @@
 2.2.3
+- Released 04/03/11
 - IPv6 support. Closes #2848930.
 - Handle filters as in6_addr and uints instead of strings
 - Fix loopback filtering support
 - Fix formatting for ICMP states. Closes #2969917.
+- Total style overhaul: move away from tabs, use 2 spaces, various other style
+  cleanups
+- Documentation updates
 
 2.2.2
 - Released 09/19/09

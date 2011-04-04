@@ -1,11 +1,12 @@
 IPTSTATE WISHLIST
-This is the wishlist. READ IT BEFORE EMAILING ME.
+Wishlist features should be filed in the Wishlist tracker on our sourceforge page.
+
+This is an overview of the common ones and where they are on the priority list.
 
 Features coming soon:
 - Filtering hostnames
 - Inverse filtering
 - Display NAT'd IP
-- IPV6 support
 
 Features that may come later:
 - Secondary sorting

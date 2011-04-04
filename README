@@ -34,12 +34,8 @@ Please see the LICENSE file for license information.
   it (i.e. ncurses-dev).
 
   Starting with version 2.2.0 you also need libnetfilter_conntrack version
-  0.0.50 or later. If you do not have libnetfilter_conntrack you can compile
-  iptstate to use /proc/net/ip_conntrack (what it did prior to 2.2.0) instead.
-  To do this, modify the Makefile and switch the LIBS and CPPFLAGS lines with
-  the commented-out ones. Note that this backwards compatibility is temporary
-  and will be removed in future versions.
-
+  0.0.50 or later. These libraries also require nf_conntrack_netlink and
+  nfnetlink support in your kernel.
 
 3. INSTALLATION
 
@@ -151,11 +147,10 @@ Please see the LICENSE file for license information.
 
 7. THE AUTHOR
 
-  IPTState was written by me, Phil Dibowitz. I am a Senior UNIX
-  Systems Administrator at Ticketmaster maintaining the web
-  infrastructure. Additionally, I maintain the FAQ for IP Filter,
-  run the MSS Initiative, document IP Filter, and do other open-source
-  work. For more info on me, check out http://www.phildev.net/
+  IPTState was written by me, Phil Dibowitz. My day job is large-scale
+  system administration and automation. Outside of work I maintain several
+  open source projects. You can find out more about me at
+  http://www.phildev.net/
 
 
 Phil Dibowitz

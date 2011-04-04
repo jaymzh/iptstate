@@ -1,30 +1,30 @@
 IPTState Bugs
 
 KNOWN BUGS
-None*
-
-* There are no known bugs in the iptstate code at the time of this writing.
-However, there are bugs in other pieces of software that may affect your
-iptstate experience:
+We keep track of bugs in our bugtracker on our Sourceforge page. However, before
+filing bugs, be aware of bugs in these other pieces of software that may affect
+your iptstate experience:
 
  - libnetfilter_conntrack 0.0.50 has a bug that prevents iptstate from
-deleting ICMP states. I wrote the following patch which the netfilter folks
-have already applied to their SVN tree:
-  http://www.phildev.net/linux/patches/libnetfilter_conntrack-0.0.50_icmp_id.patch
-You can use it if this affects you.
+   deleting ICMP states. I wrote the following patch which the netfilter folks
+   have already applied to their SVN tree:
+     http://www.phildev.net/linux/patches/libnetfilter_conntrack-0.0.50_icmp_id.patch
+   You can use it if this affects you.
 
  - There seems to be a small memory leak somewhere in ncurses. See 
-  http://www.phildev.net/iptstate/memleak.html
-for details.  This won't effect most users much, but you want to be weary of
-leaving iptstate running on very busy firewalls for very long periods of time
-(a day or more). This bug has been reported to ncurses, see above URL.
+     http://www.phildev.net/iptstate/memleak.html
+   for details.  This won't effect most users much, but you want to be weary of
+   leaving iptstate running on very busy firewalls for very long periods of time
+   (a day or more). This bug has been reported to ncurses, see above URL.
 
 ABOUT BUGS
 If you find a bug in IPTState you should file a bug at our bugtracker:
   https://sourceforge.net/tracker/?group_id=52748&atid=467897
 OR mail our -devel list:
   https://lists.sourceforge.net/lists/listinfo/iptstate-devel
-OR email me at phil AT ipom DOT com.
+
+If you are unsure if it's a bug or need support, please use the -devel mailing
+list.
 
 Sending a bug to your distro or some public forum is not going to let me know.
 I can't fix things I don't know about. So make sure I know!
@@ -35,29 +35,28 @@ broken, or a security problem I'll usually give you pretty immediate attention.
 If it's a very minor bug, or a feature request, I'll respond as I have time.
 
 ABOUT PATCHES
-Patches are not necessary, but if you submit one remember: PATCHES SHOULD BE
-ACCOMPANIED BY EXPLINATIONS AND/OR BUG REPORTS! Let me know what you were
-trying to fix/add and how you did it. This will save me a lot of time, and I'll
-like you more.
+Patches are welcome but not necessary. I will fix bugs, don't worry. If you
+would like to contribute code, PLEASE use consistent style to the rest of the
+code. If you send a patch, it should be accompanied with a good explanation of
+what it does and why. If it fixes a bug, it should also be accompanied by a
+bug report in our bug tracker.
 
 ABOUT BUG REPORTS
-If you send me a bug report you MUST do the following:
-  - Include "IPTSTATE" in the subject
-  - Include your iptstate version
-  - Include your distribution and distribution version
-  - Include your kernel version
-  - Include your g++ version
-  - Include your make version
-  - Include your glibc version
-  - Include your ncurses version
-  - Include your libnetfilter_conntrack version
-  - Include any relevant output and/or errors
+Please be sure to include these things in bug reports:
+  - your iptstate version
+  - your distribution and distribution version
+  - your kernel version
+  - your g++ version (if you built it yourself)
+  - your make version (if you built it yourself)
+  - your glibc version (if you built it yourself)
+  - your ncurses version
+  - your libnetfilter_conntrack version
+  - any relevant output and/or errors
 
-Bug reports should be sent to *ME* (see above). I cannot fix your bugs if you
-don't tell *ME* about them. That's right, send your bug reports to *ME*.
+Once again, distributions don't always forward bug reports upstream, so
+please send bug reports to me if you want bugs fixed.
 
 Thanks!
 
 Phil Dibowitz
 phil AT ipom DOT com
-
