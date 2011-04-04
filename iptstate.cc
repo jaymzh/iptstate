@@ -996,6 +996,9 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 			sizeof(uint8_t[16]));
 		memcpy(entry.dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST),
 			sizeof(uint8_t[16]));
+	} else {
+		fprintf(stderr, "UNKNOWN FAMILY!\n");
+		exit(1);
 	}
 
 	// Counters (summary, in + out)
@@ -1011,6 +1014,9 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 		max->packets = digits(entry.packets);
 	}
 
+	if (entry.proto.size() > max->proto)
+		max->proto = entry.proto.size();
+
 	// OK, proto dependent stuff
 	if (entry.proto == "tcp" || entry.proto == "udp") {
 		entry.srcpt = htons(
@@ -1020,39 +1026,23 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 	}
 
 	if (entry.proto == "tcp") {
-
 		entry.state =
 			states[nfct_get_attr_u8(ct, ATTR_TCP_STATE)];
 		counts->tcp++;
-
 	} else if (entry.proto == "udp") {
-
 		entry.state = "";
 		counts->udp++;
-
 	} else if (entry.proto == "icmp") {
-
 		typecode.str("");
 		typecode << (int)nfct_get_attr_u8(ct, ATTR_ICMP_TYPE)
 			<< "/" << (int)nfct_get_attr_u8(ct, ATTR_ICMP_CODE)
 			<< " (" << nfct_get_attr_u16(ct, ATTR_ICMP_ID)
 			<< ")";
 
-
 		entry.state = typecode.str();
 		counts->icmp++;
-
 	} else {
-		/*
-		 * If the protocol is something else, then we need
-		 * to know how long the name of the protocol is so
-		 * we can format accordingly later.
-		 */
-		if (entry.proto.size() > max->proto)
-			max->proto = entry.proto.size();
-
 		counts->other++;
-
 	}
 
 	/*

@@ -1,3 +1,8 @@
+2.2.3
+- IPv6 support
+- Handle filters as in6_addr and uints instead of strings
+- Fix loopback filtering support
+
 2.2.2
 - Released 09/19/09
 - Fix includes
