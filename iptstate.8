@@ -60,7 +60,7 @@ No scrolling (don't use a "pad"). See \fBSCROLLING AND PADS\fP for more informat
 Reverse sort order
 .TP
 .B -R, --rate \fIseconds\fP
-Refresh rate, followed by rate in \fIseconds\fP. Note that this is for statetop mode, and not applicable for single-run mode (--single).
+Refresh rate, followed by rate in \fIseconds\fP. Note that this is for statetop mode, and not applicable for single-run mode (\-\-single).
 .TP
 .B -1, --single
 Single run (no curses)
@@ -92,7 +92,7 @@ Bytes
 .B "	P"
 Packets
 .br
-To sort by Source IP (or Name), don't use -b. Sorting by bytes/packets is only available for kernels that support it, and only when compiled against libnetfilter_conntrack (the default).
+To sort by Source IP (or Name), don't use \-b. Sorting by bytes/packets is only available for kernels that support it, and only when compiled against libnetfilter_conntrack (the default).
 .TP
 .B -s, --src-filter \fIIP\fP
 Only show states with a source of \fIIP\fP. Note, that this must be an IP, hostname matching is not yet supported.
