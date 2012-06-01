@@ -2,6 +2,7 @@
 - Released 06/01/12
 - Improved IPv6 support - truncate addresses if they don't fit and generally
   treat them like hostnames at display time
+- CONTRIB and man page fixes (Chris Taylor <ctaylor@debian.org>)
 
 2.2.3
 - Released 04/03/11
