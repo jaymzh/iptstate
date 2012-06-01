@@ -6,7 +6,7 @@
  *
  * -----------------------------------
  *
- * Copyright (C) 2002 - 2012 Phil Dibowitz
+ * Copyright (C) 2002 - present Phil Dibowitz
  *
  * This software is provided 'as-is', without any express or
  * implied warranty. In no event will the authors be held
