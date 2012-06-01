@@ -336,14 +336,51 @@ void resolve_port(const unsigned int &port, string &name, const string &proto)
   }
 }
 
-void resolve_names(table_t &entry, max_t &max)
+/*
+ * If lookup mode is on, we lookup the names and put them in the structure.
+ *
+ * If lookup mode is not on, we generate strings of the addresses and put
+ * those in the structure.
+ *
+ * Finally, we update the max_t structure.
+ *
+ * NOTE: We stringify addresses largely because in the IPv6 case we need
+ * to treat them like truncate-able strings.
+ */
+void stringify_entry(table_t &entry, max_t &max, const flags_t &flags)
 {
   unsigned int size = 0;
+  ostringstream buffer;
+  char tmp[NAMELEN];
 
-  resolve_host(entry.family, entry.src, entry.sname);
-  resolve_host(entry.family, entry.dst, entry.dname);
-  resolve_port(entry.srcpt, entry.spname, entry.proto);
-  resolve_port(entry.dstpt, entry.dpname, entry.proto);
+  bool have_port = entry.proto == "tcp" || entry.proto == "udp";
+  if (!have_port) {
+    entry.spname = entry.dpname = "";
+  }
+
+  if (flags.lookup) {
+    resolve_host(entry.family, entry.src, entry.sname);
+    resolve_host(entry.family, entry.dst, entry.dname);
+    if (have_port) {
+      resolve_port(entry.srcpt, entry.spname, entry.proto);
+      resolve_port(entry.dstpt, entry.dpname, entry.proto);
+    }
+  } else {
+    buffer << inet_ntop(entry.family, (void*)&entry.src, tmp, NAMELEN-1);
+    entry.sname = buffer.str();
+    buffer.str("");
+    buffer << inet_ntop(entry.family, (void*)&entry.dst, tmp, NAMELEN-1);
+    entry.dname = buffer.str();
+    buffer.str("");
+    if (have_port) {
+      buffer << entry.srcpt;
+      entry.spname = buffer.str();
+      buffer.str("");
+      buffer << entry.dstpt;
+      entry.dpname = buffer.str();
+      buffer.str("");
+    }
+  }
 
   size = entry.sname.size() + entry.spname.size() + 1;
   if (size > max.src)
@@ -352,29 +389,6 @@ void resolve_names(table_t &entry, max_t &max)
   size = entry.dname.size() + entry.dpname.size() + 1;
   if (size > max.dst)
     max.dst = size;
-
-}
-
-
-/*
- * Based on the format pre-chosen, truncate src/dst as needed.
- */
-void truncate(table_t &table, const max_t &max, const flags_t &flags)
-{
-  int length;
-  if (table.sname.size() + table.spname.size() + 1 > max.src) {
-    length = max.src - 1 - table.spname.size();
-    table.sname = table.sname.substr(0, length);
-    if (flags.tag_truncate)
-      table.sname[table.sname.size()-1] = '+';
-  }
-
-  if (table.dname.size() + table.dpname.size() + 1 > max.dst) {
-    length = max.dst - 1 - table.dpname.size();
-    table.dname = table.dname.substr(0, length);
-    if (flags.tag_truncate)
-      table.dname[0] = '+';
-  }
 }
 
 
@@ -791,7 +805,8 @@ void initialize_maxes(max_t &max, flags_t &flags)
     max.src = max.dst = 21;
   }
   /*
-   * The proto header is 5, so we can't drop below 6.
+   * The proto starts at 3, since tcp/udp are the most common, but will
+   * grow if we see bigger proto strings such as "ICMP".
    */
   max.proto = 3;
   /*
@@ -1093,12 +1108,12 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   }
 
   /*
-   * RESOLVE AND TRUNCATE
+   * RESOLVE
    */
 
-  // Resolve Names if we need to
-  if (flags->lookup)
-    resolve_names(entry,*max);
+  // Resolve names - if necessary - or generate strings of address,
+  // and calculate max sizes
+  stringify_entry(entry, *max, *flags);
 
   /*
    * Add this to the array
@@ -1373,6 +1388,55 @@ void print_headers(const flags_t &flags, const string &format,
 
 }
 
+
+void truncate(string &string, int length, bool mark, char direction)
+{
+  int s = (direction == 'f') ? string.size() - length : 0;
+
+  string = string.substr(s, length);
+  if (mark) {
+    int m = (direction == 'f') ? 0 : string.size() - 1;
+    string[m] = '+';
+  }
+}
+
+/*
+ * Based on the format pre-chosen, truncate src/dst as needed, and then
+ * generate the host:port strings and drop them off in the src/dst string
+ * objects passed in.
+ */
+void format_src_dst(table_t &table, string &src, string &dst,
+                      const flags_t &flags, const max_t &max)
+{
+  ostringstream buffer;
+  bool have_port = table.proto == "tcp" || table.proto == "udp";
+  char direction;
+
+  int length;
+  if (table.sname.size() + table.spname.size() + 1 > max.src) {
+    length = max.src - 1 - table.spname.size();
+    direction = (flags.lookup) ? 'e' : 'f';
+    truncate(table.sname, length, flags.tag_truncate, direction);
+  }
+
+  if (table.dname.size() + table.dpname.size() + 1 > max.dst) {
+    length = max.dst - 1 - table.dpname.size();
+    direction = (flags.lookup) ? 'f' : 'e';
+    truncate(table.dname, length, flags.tag_truncate, direction);
+  }
+
+  buffer << table.sname;
+  if (have_port)
+    buffer << ":" << table.spname;
+  src = buffer.str();
+  buffer.str("");
+  buffer << table.dname;
+  if (have_port)
+    buffer << ":" << table.dpname;
+  dst = buffer.str();
+  buffer.str("");
+}
+
 /*
  * An abstraction of priting a line for both single/curses modes
  */
@@ -1382,37 +1446,9 @@ void printline(table_t &table, const flags_t &flags, const string &format,
   ostringstream buffer;
   buffer.str("");
   string src, dst, b, p;
-  char tmp[NAMELEN];
   
-  if (flags.lookup)
-    truncate(table, max, flags);
-
-  if (table.proto == "tcp" || table.proto == "udp") {
-    if (flags.lookup && (table.sname != ""))
-      buffer << table.sname << ":" << table.spname;
-    else
-      buffer << inet_ntop(table.family, (void*)&table.src, tmp, NAMELEN-1)
-          << ":" << table.srcpt;
-    src = buffer.str();
-    buffer.str("");
-    if (flags.lookup && (table.dname != "")) {
-      buffer << table.dname << ":" << table.dpname;
-    } else {
-      buffer << inet_ntop(table.family, (void*)&table.dst, tmp, NAMELEN-1)
-        << ":" << table.dstpt;
-    }
-    dst = buffer.str();
-    buffer.str("");
-  } else {
-    if (flags.lookup && (table.sname != ""))
-      src = table.sname;
-    else
-      src = inet_ntop(table.family, (void*)&table.src, tmp, NAMELEN-1);
-    if (flags.lookup && (table.dname != ""))
-      dst = table.dname;
-    else
-      dst = inet_ntop(table.family, (void*)&table.dst, tmp, NAMELEN-1);
-  }
+  // Generate strings for src/dest, truncating and marking as necessary
+  format_src_dst(table, src, dst, flags, max);
 
   if (flags.counters) {
     buffer << table.bytes;
@@ -2553,8 +2589,7 @@ int main(int argc, char *argv[])
         wclrtoeol(mainwin);
         break;
       case 'x':
-        delete_state(mainwin, stable[curr_state],
-            flags);
+        delete_state(mainwin, stable[curr_state], flags);
         break;
       /*
        * Window navigation
