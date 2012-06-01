@@ -6,7 +6,7 @@
  *
  * -----------------------------------
  *
- * Copyright (C) 2002 - 2011 Phil Dibowitz
+ * Copyright (C) 2002 - 2012 Phil Dibowitz
  *
  * This software is provided 'as-is', without any express or
  * implied warranty. In no event will the authors be held
@@ -63,7 +63,7 @@ extern "C" {
 #include <unistd.h>
 using namespace std;
 
-#define VERSION "2.2.3"
+#define VERSION "2.2.4"
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
  * speaking the ncurses pad is this many lines long, but since ncurses
