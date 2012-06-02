@@ -1,7 +1,7 @@
 .\" Process this file with
 .\" groff -man -Tascii iptstate.8
 .\"
-.TH IPTSTATE 8 "APRIL 2011" "" ""
+.TH IPTSTATE 8 "JUNE 2012" "" ""
 .\"
 .\" Man page written by Phil Dibowitz <phil AT ipom DOT com>
 .\"
@@ -167,7 +167,7 @@ We don't support filtering on resolved names, and we don't support filtering on 
 All bugs should be reported to Phil Dibowitz <phil AT ipom DOT com>. Please see the \fBREADME\fR and \fBBUGS\fR for more information on bug reports. Please read the \fBWISHLIST\fR before sending in features you hope to see.  
 
 .SH NOTES
-\fBiptstate\fP does a lot of work to try to fit everything on the screen in an easy-to-read way. However, in some cases, hostnames may need to be truncated in lookup mode. The truncation of names in lookup mode happens from the right for source because you most likely know your own domain name, and from the left for destination because knowing your users are connection to "mail.a." doesn't help much.
+\fBiptstate\fP does a lot of work to try to fit everything on the screen in an easy-to-read way. However, in some cases, hostnames may need to be truncated (in lookup mode). Similarly, IPv6 addresses may need to be truncated. The truncation of names happens from the right for source because you most likely know your own domain name, and from the left for destination because knowing your users are connection to "mail.a." doesn't help much. However, for addresses, this is reversed.
 .PP
 \fBiptstate\fP does not automatically handle window-resizes while in the \fBinteractive help\fP screen. If you do resize while in this window, you should return to the main window, hit \fBctrl-L\fP to re-calculate and re-draw the screen, and then, if you choose, return to the \fBinteractive help\fP.
 .PP

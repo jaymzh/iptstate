@@ -63,7 +63,7 @@ extern "C" {
 #include <unistd.h>
 using namespace std;
 
-#define VERSION "2.2.4"
+#define VERSION "2.2.4+CVS"
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
  * speaking the ncurses pad is this many lines long, but since ncurses
@@ -910,13 +910,19 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
     nfct_set_attr(ct, ATTR_ORIG_IPV6_DST, (void *)&entry.dst.s6_addr);
   }
 
-  nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO,
-                   getprotobyname(entry.proto.c_str())->p_proto);
+  // undo our space optimization so the kernel can find the state.
+  protoent *pn;
+  if (entry.proto == "icmp6")
+    pn = getprotobyname("ipv6-icmp");
+  else
+    pn = getprotobyname(entry.proto.c_str());
+
+  nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, pn->p_proto);
 
   if (entry.proto == "tcp" || entry.proto == "udp") {
     nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, htons(entry.srcpt));
     nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, htons(entry.dstpt));
-  } else if (entry.proto == "icmp") {
+  } else if (entry.proto == "icmp" || entry.proto == "icmp6") {
     string type, code, id, tmp;
     split('/', entry.state, type, tmp);
     split(' ', tmp, code, tmp);
@@ -970,7 +976,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   struct protoent* pe = NULL;
   int seconds, minutes, hours;
   char ttlc[11];
-  ostringstream typecode;
+  ostringstream buffer;
 
   /*
    * Clear the entry
@@ -988,11 +994,20 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
    * same regardless of protocol
    */
 
-  pe = getprotobynumber(nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO));
+  short int pr = nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO);
+  pe = getprotobynumber(pr);
   if (pe == NULL) {
-    entry.proto = "unknown";
+    buffer << pr;
+    entry.proto = buffer.str();
+    buffer.str("");
   } else {
     entry.proto = pe->p_name;
+    /* 
+     * if proto is "ipv6-icmp" we can just say "icmp6" to save space...
+     * it's more common/standard anyway
+     */
+    if (entry.proto == "ipv6-icmp")
+      entry.proto = "icmp6";
   }
 
   // ttl
@@ -1050,13 +1065,15 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   } else if (entry.proto == "udp") {
     entry.state = "";
     counts->udp++;
-  } else if (entry.proto == "icmp") {
-    typecode.str("");
-    typecode << (int)nfct_get_attr_u8(ct, ATTR_ICMP_TYPE) << "/"
+  } else if (entry.proto == "icmp" || entry.proto == "icmp6") {
+    buffer.str("");
+    buffer << (int)nfct_get_attr_u8(ct, ATTR_ICMP_TYPE) << "/"
         << (int)nfct_get_attr_u8(ct, ATTR_ICMP_CODE) << " ("
         << nfct_get_attr_u16(ct, ATTR_ICMP_ID) << ")";
-    entry.state = typecode.str();
+    entry.state = buffer.str();
     counts->icmp++;
+    if (entry.state.size() > max->state)
+      max->state = entry.state.size();
   } else {
     counts->other++;
   }
@@ -1411,16 +1428,30 @@ void format_src_dst(table_t &table, string &src, string &dst,
   ostringstream buffer;
   bool have_port = table.proto == "tcp" || table.proto == "udp";
   char direction;
+  unsigned int length;
 
-  int length;
-  if (table.sname.size() + table.spname.size() + 1 > max.src) {
-    length = max.src - 1 - table.spname.size();
+  // What length would we currently use?
+  length = table.sname.size();
+  if (have_port)
+    length += table.spname.size() + 1;
+
+  // If it's too long, figure out how room we have and truncate it
+  if (length > max.src) {
+    length = max.src;
+    if (have_port)
+      length -= 1 + table.spname.size();
     direction = (flags.lookup) ? 'e' : 'f';
     truncate(table.sname, length, flags.tag_truncate, direction);
   }
 
-  if (table.dname.size() + table.dpname.size() + 1 > max.dst) {
-    length = max.dst - 1 - table.dpname.size();
+  // ... and repeat
+  length = table.dname.size();
+  if (have_port)
+    length += table.dpname.size() + 1;
+  if (length > max.dst) {
+    length = max.dst;
+    if (have_port)
+      length -= 1 + table.dpname.size();
     direction = (flags.lookup) ? 'f' : 'e';
     truncate(table.dname, length, flags.tag_truncate, direction);
   }
@@ -1473,7 +1504,7 @@ void printline(table_t &table, const flags_t &flags, const string &format,
         color = 1;
       else if (table.proto == "udp")
         color = 2;
-      else if (table.proto == "icmp")
+      else if (table.proto == "icmp" || table.proto == "icmp6")
         color = 3;
       if (curr)
         color += 4;
