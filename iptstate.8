@@ -39,7 +39,7 @@ Only show states with a destination port of \fIport\fP
 Show help message
 .TP
 .B -l, --lookup
-Show hostnames instead of IP addresses
+Show hostnames instead of IP addresses. Enabling this will also enable \fB-L\fP to prevent an ever-growing number of DNS requests.
 .TP
 .B -m, --mark-truncated
 Mark truncated hostnames with a '+'
@@ -135,6 +135,8 @@ In most cases, a blank response means "clear" - clear the source IP filter, for 
 At anytime while \fBiptstate\fP is running, you can hit \fBh\fP to get to the \fBinteractive help\fP which will display all the current settings to you as well give you a list of all interactive commands available.
 .PP
 While running, \fBspace\fP will immediately update the display. \fBIptstate\fP should gracefully handle all window resizes, but if it doesn't, you can force it to re-calculate and re-draw the screen with a \fBctrl-L\fP.
+.PP
+Note that hitting \fBl\fP to enable hostname resolution while in interactive mode will also enable \fBL\fP to skip all DNS entries (to prevent an ever-growing number of DNS requests).
 
 .SH SCROLLING AND PADS
 For almost any user, there is no reason to turn off scrolling. The ability to turn this off - and especially the ability to toggle this interactively - is done more for theoretical completeness than anything else.

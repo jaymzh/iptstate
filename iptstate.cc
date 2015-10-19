@@ -264,7 +264,8 @@ void help()
   cout << "  -h, --help\n";
   cout << "\tThis help message\n\n";
   cout << "  -l, --lookup\n";
-  cout << "\tShow hostnames instead of IP addresses\n\n";
+  cout << "\tShow hostnames instead of IP addresses. Enabling this will also"
+    << " enable\n\t-L to prevent an ever-growing number of DNS requests.\n\n";
   cout << "  -m, --mark-truncated\n";
   cout << "\tMark truncated hostnames with a '+'\n\n";
   cout << "  -o, --no-dynamic\n";
@@ -2246,6 +2247,8 @@ int main(int argc, char *argv[])
     // --lookup
     case 'l':
       flags.lookup = true;
+      // and also set skipdns for sanity
+      flags.skipdns = true;
       break;
     // --mark-truncated
     case 'm':
@@ -2497,6 +2500,14 @@ int main(int argc, char *argv[])
         break;
       case 'l':
         flags.lookup = !flags.lookup;
+        /*
+         * If we just turned on lookup, also turn on filtering DNS states.
+         * They can turn it off if they want, but generally this is the safer
+         * approach.
+         */
+        if (flags.lookup) {
+          flags.skipdns = true;
+        }
         break;
       case 'm':
         flags.tag_truncate = !flags.tag_truncate;
