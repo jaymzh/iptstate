@@ -51,6 +51,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 // There are no C++-ified versions of these.
 #include <arpa/inet.h>
@@ -167,7 +168,7 @@ struct max_t {
   unsigned long bytes, packets;
 };
 struct hook_data {
-  vector<table_t> *stable;
+  vector<table_t*> *stable;
   flags_t *flags;
   max_t *max;
   counters_t *counts;
@@ -348,46 +349,46 @@ void resolve_port(const unsigned int &port, string &name, const string &proto)
  * NOTE: We stringify addresses largely because in the IPv6 case we need
  * to treat them like truncate-able strings.
  */
-void stringify_entry(table_t &entry, max_t &max, const flags_t &flags)
+void stringify_entry(table_t *entry, max_t &max, const flags_t &flags)
 {
   unsigned int size = 0;
   ostringstream buffer;
   char tmp[NAMELEN];
 
-  bool have_port = entry.proto == "tcp" || entry.proto == "udp";
+  bool have_port = entry->proto == "tcp" || entry->proto == "udp";
   if (!have_port) {
-    entry.spname = entry.dpname = "";
+    entry->spname = entry->dpname = "";
   }
 
   if (flags.lookup) {
-    resolve_host(entry.family, entry.src, entry.sname);
-    resolve_host(entry.family, entry.dst, entry.dname);
+    resolve_host(entry->family, entry->src, entry->sname);
+    resolve_host(entry->family, entry->dst, entry->dname);
     if (have_port) {
-      resolve_port(entry.srcpt, entry.spname, entry.proto);
-      resolve_port(entry.dstpt, entry.dpname, entry.proto);
+      resolve_port(entry->srcpt, entry->spname, entry->proto);
+      resolve_port(entry->dstpt, entry->dpname, entry->proto);
     }
   } else {
-    buffer << inet_ntop(entry.family, (void*)&entry.src, tmp, NAMELEN-1);
-    entry.sname = buffer.str();
+    buffer << inet_ntop(entry->family, (void*)&(entry->src), tmp, NAMELEN-1);
+    entry->sname = buffer.str();
     buffer.str("");
-    buffer << inet_ntop(entry.family, (void*)&entry.dst, tmp, NAMELEN-1);
-    entry.dname = buffer.str();
+    buffer << inet_ntop(entry->family, (void*)&(entry->dst), tmp, NAMELEN-1);
+    entry->dname = buffer.str();
     buffer.str("");
     if (have_port) {
-      buffer << entry.srcpt;
-      entry.spname = buffer.str();
+      buffer << entry->srcpt;
+      entry->spname = buffer.str();
       buffer.str("");
-      buffer << entry.dstpt;
-      entry.dpname = buffer.str();
+      buffer << entry->dstpt;
+      entry->dpname = buffer.str();
       buffer.str("");
     }
   }
 
-  size = entry.sname.size() + entry.spname.size() + 1;
+  size = entry->sname.size() + entry->spname.size() + 1;
   if (size > max.src)
     max.src = size;
 
-  size = entry.dname.size() + entry.dpname.size() + 1;
+  size = entry->dname.size() + entry->dpname.size() + 1;
   if (size > max.dst)
     max.dst = size;
 }
@@ -396,108 +397,88 @@ void stringify_entry(table_t &entry, max_t &max, const flags_t &flags)
 /*
  * SORT FUNCTIONS
  */
-int src_sort(const void *a, const void *b)
+bool src_sort(table_t *one, table_t *two)
 {
-  return sort_factor * memcmp(&((table_t *)a)->src, &((table_t *)b)->src,
-                             sizeof(in6_addr));
-}
-
-int dst_sort(const void *a, const void *b)
-{
-  return sort_factor * memcmp(&((table_t *)a)->dst, &((table_t *)b)->dst,
-                              sizeof(in6_addr));
-}
-
-int srcpt_sort(const void *a, const void *b)
-{
-  if (((table_t *)a)->srcpt == ((table_t *)b)->srcpt) {
-    return 0;
-  } else if (((table_t *)a)->srcpt > ((table_t *)b)->srcpt) {
-    return sort_factor;
+  /*
+   * memcmp() will properly sort v4 or v6 addresses, but not cross-family
+   * (presumably because of garbage in the top 96 bytes when you store
+   * a v4 address in a in6_addr), so we sort by family and then memcmp()
+   * within the same family.
+   */
+  if (one->family == two->family) {
+    return memcmp(one->src.s6_addr, two->src.s6_addr, 16) * sort_factor < 0;
+  } else if (one->family == AF_INET) {
+    return sort_factor > 0;
+  } else {
+    return sort_factor < 0;
   }
-  return -sort_factor;
 }
 
-int dstpt_sort(const void *a, const void *b)
+bool srcname_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->dstpt == ((table_t *)b)->dstpt) {
-    return 0;
-  } else if (((table_t *)a)->dstpt > ((table_t *)b)->dstpt) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return one->sname.compare(two->sname) * sort_factor < 0;
 }
 
-int proto_sort(const void *a, const void *b)
+bool dst_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->proto == ((table_t *)b)->proto) {
-    return 0;
-  } else if (((table_t *)a)->proto > ((table_t *)b)->proto) {
-    return sort_factor;
+  // See src_sort() for details
+  if (one->family == two->family) {
+    return memcmp(one->dst.s6_addr, two->dst.s6_addr, 16) * sort_factor < 0;
+  } else if (one->family == AF_INET) {
+    return sort_factor > 0;
+  } else {
+    return sort_factor > 0;
   }
-  return -sort_factor;
 }
 
-int state_sort(const void *a, const void *b)
+bool dstname_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->state == ((table_t *)b)->state) {
-    return 0;
-  } else if (((table_t *)a)->state > ((table_t *)b)->state) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return one->dname.compare(two->dname) * sort_factor < 0;
 }
 
-int ttl_sort(const void *a, const void *b)
+/*
+ * int comparison that takes care of sort_factor
+ * used for ports, bytes, etc...
+ */
+bool cmpint(int one, int two)
 {
-  if (((table_t *)a)->ttl == ((table_t *)b)->ttl) {
-    return 0;
-  } else if (((table_t *)a)->ttl > ((table_t *)b)->ttl) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return (sort_factor > 0) ? one < two : one > two;
 }
 
-int sname_sort(const void *a, const void *b)
+bool srcpt_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->sname == ((table_t *)b)->sname) {
-    return 0;
-  } else if (((table_t *)a)->sname > ((table_t *)b)->sname) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return cmpint(one->srcpt, two->srcpt);
 }
 
-int dname_sort(const void *a, const void *b)
+bool dstpt_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->dname == ((table_t *)b)->dname) {
-    return 0;
-  } else if (((table_t *)a)->dname > ((table_t *)b)->dname) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return cmpint(one->dstpt, two->dstpt);
 }
 
-int bytes_sort(const void *a, const void *b)
+bool proto_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->bytes == ((table_t *)b)->bytes) {
-    return 0;
-  } else if (((table_t *)a)->bytes > ((table_t *)b)->bytes) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return one->proto.compare(two->proto) * sort_factor < 0;
 }
 
-int packets_sort(const void *a, const void *b)
+bool state_sort(table_t *one, table_t *two)
 {
-  if (((table_t *)a)->packets == ((table_t *)b)->packets) {
-    return 0;
-  } else if (((table_t *)a)->packets > ((table_t *)b)->packets) {
-    return sort_factor;
-  }
-  return -sort_factor;
+  return one->state.compare(two->state) * sort_factor < 0;
 }
 
+bool ttl_sort(table_t *one, table_t *two)
+{
+  return one->ttl.compare(two->ttl) * sort_factor < 0;
+}
+
+bool bytes_sort(table_t *one, table_t *two)
+{
+  return cmpint(one->bytes, two->bytes);
+}
+
+bool packets_sort(table_t *one, table_t *two)
+{
+  return cmpint(one->packets, two->packets);
+}
 
 /*
  * CURSES HELPER FUNCTIONS
@@ -871,7 +852,7 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 /*
  * Take in a 'curr' value, and delete a given conntrack
  */
-void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
+void delete_state(WINDOW *&win, const table_t *entry, const flags_t &flags)
 {
   struct nfct_handle *cth;
   struct nf_conntrack *ct;
@@ -881,14 +862,14 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
   string response;
   char str[NAMELEN];
   string src, dst;
-  src = inet_ntop(entry.family, (void *)&entry.src, str, NAMELEN-1);
-  dst = inet_ntop(entry.family, (void *)&entry.dst, str, NAMELEN-1);
+  src = inet_ntop(entry->family, (void *)&(entry->src), str, NAMELEN-1);
+  dst = inet_ntop(entry->family, (void *)&(entry->dst), str, NAMELEN-1);
 
   ostringstream msg;
   msg.str("");
   msg << "Deleting state: ";
-  if (entry.proto == "tcp" || entry.proto == "udp") {
-    msg << src << ":" << entry.srcpt << " -> " << dst << ":" << entry.dstpt;
+  if (entry->proto == "tcp" || entry->proto == "udp") {
+    msg << src << ":" << entry->srcpt << " -> " << dst << ":" << entry->dstpt;
   } else {
     msg << src << " -> " << dst;
   }
@@ -901,31 +882,31 @@ void delete_state(WINDOW *&win, const table_t &entry, const flags_t &flags)
     return;
   }
 
-  nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, entry.family);
+  nfct_set_attr_u8(ct, ATTR_ORIG_L3PROTO, entry->family);
 
-  if (entry.family == AF_INET) {
-    nfct_set_attr(ct, ATTR_ORIG_IPV4_SRC, (void *)&entry.src.s6_addr);
-    nfct_set_attr(ct, ATTR_ORIG_IPV4_DST, (void *)&entry.dst.s6_addr);
-  } else if (entry.family == AF_INET6) {
-    nfct_set_attr(ct, ATTR_ORIG_IPV6_SRC, (void *)&entry.src.s6_addr);
-    nfct_set_attr(ct, ATTR_ORIG_IPV6_DST, (void *)&entry.dst.s6_addr);
+  if (entry->family == AF_INET) {
+    nfct_set_attr(ct, ATTR_ORIG_IPV4_SRC, (void *)&(entry->src.s6_addr));
+    nfct_set_attr(ct, ATTR_ORIG_IPV4_DST, (void *)&(entry->dst.s6_addr));
+  } else if (entry->family == AF_INET6) {
+    nfct_set_attr(ct, ATTR_ORIG_IPV6_SRC, (void *)&(entry->src.s6_addr));
+    nfct_set_attr(ct, ATTR_ORIG_IPV6_DST, (void *)&(entry->dst.s6_addr));
   }
 
   // undo our space optimization so the kernel can find the state.
   protoent *pn;
-  if (entry.proto == "icmp6")
+  if (entry->proto == "icmp6")
     pn = getprotobyname("ipv6-icmp");
   else
-    pn = getprotobyname(entry.proto.c_str());
+    pn = getprotobyname(entry->proto.c_str());
 
   nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, pn->p_proto);
 
-  if (entry.proto == "tcp" || entry.proto == "udp") {
-    nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, htons(entry.srcpt));
-    nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, htons(entry.dstpt));
-  } else if (entry.proto == "icmp" || entry.proto == "icmp6") {
+  if (entry->proto == "tcp" || entry->proto == "udp") {
+    nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, htons(entry->srcpt));
+    nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, htons(entry->dstpt));
+  } else if (entry->proto == "icmp" || entry->proto == "icmp6") {
     string type, code, id, tmp;
-    split('/', entry.state, type, tmp);
+    split('/', entry->state, type, tmp);
     split(' ', tmp, code, tmp);
     split('(', tmp, tmp, id);
     split(')', id, id, tmp);
@@ -964,14 +945,14 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   /*
    * and pull out the pieces
    */
-  vector<table_t> *stable = data->stable;
+  vector<table_t*> *stable = data->stable;
   flags_t *flags = data->flags;
   max_t *max = data->max;
   counters_t *counts = data->counts;
   const filters_t *filters = data->filters;
 
   // our table entry
-  table_t entry;
+  table_t *entry = new table_t;
 
   // some vars
   struct protoent* pe = NULL;
@@ -982,13 +963,13 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   /*
    * Clear the entry
    */
-  entry.sname = "";
-  entry.dname = "";
-  entry.srcpt = 0;
-  entry.dstpt = 0;
-  entry.proto = "";
-  entry.ttl = "";
-  entry.state = "";
+  entry->sname = "";
+  entry->dname = "";
+  entry->srcpt = 0;
+  entry->dstpt = 0;
+  entry->proto = "";
+  entry->ttl = "";
+  entry->state = "";
 
   /*
    * First, we read stuff into the array that's always the
@@ -999,16 +980,16 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   pe = getprotobynumber(pr);
   if (pe == NULL) {
     buffer << pr;
-    entry.proto = buffer.str();
+    entry->proto = buffer.str();
     buffer.str("");
   } else {
-    entry.proto = pe->p_name;
+    entry->proto = pe->p_name;
     /* 
      * if proto is "ipv6-icmp" we can just say "icmp6" to save space...
      * it's more common/standard anyway
      */
-    if (entry.proto == "ipv6-icmp")
-      entry.proto = "icmp6";
+    if (entry->proto == "ipv6-icmp")
+      entry->proto = "icmp6";
   }
 
   // ttl
@@ -1019,19 +1000,19 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   seconds = seconds%60;
   // Format it with snprintf and store it in the table
   snprintf(ttlc,11, "%3i:%02i:%02i", hours, minutes, seconds);
-  entry.ttl = ttlc; 
+  entry->ttl = ttlc;
 
-  entry.family = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO);
+  entry->family = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO);
   // Everything has addresses
-  if (entry.family == AF_INET) {
-    memcpy(entry.src.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC),
+  if (entry->family == AF_INET) {
+    memcpy(entry->src.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC),
            sizeof(uint8_t[16]));
-    memcpy(entry.dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV4_DST),
+    memcpy(entry->dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV4_DST),
            sizeof(uint8_t[16]));
-  } else if (entry.family == AF_INET6) {
-    memcpy(entry.src.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC),
+  } else if (entry->family == AF_INET6) {
+    memcpy(entry->src.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC),
            sizeof(uint8_t[16]));
-    memcpy(entry.dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST),
+    memcpy(entry->dst.s6_addr, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST),
            sizeof(uint8_t[16]));
   } else {
     fprintf(stderr, "UNKNOWN FAMILY!\n");
@@ -1039,42 +1020,42 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   }
 
   // Counters (summary, in + out)
-  entry.bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES) +
+  entry->bytes = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES) +
           nfct_get_attr_u32(ct, ATTR_REPL_COUNTER_BYTES);
-  entry.packets = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS) +
+  entry->packets = nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS) +
           nfct_get_attr_u32(ct, ATTR_REPL_COUNTER_PACKETS);
 
-  if (digits(entry.bytes) > max->bytes) {
-    max->bytes = digits(entry.bytes);
+  if (digits(entry->bytes) > max->bytes) {
+    max->bytes = digits(entry->bytes);
   }
-  if (digits(entry.packets) > max->packets) {
-    max->packets = digits(entry.packets);
+  if (digits(entry->packets) > max->packets) {
+    max->packets = digits(entry->packets);
   }
 
-  if (entry.proto.size() > max->proto)
-    max->proto = entry.proto.size();
+  if (entry->proto.size() > max->proto)
+    max->proto = entry->proto.size();
 
   // OK, proto dependent stuff
-  if (entry.proto == "tcp" || entry.proto == "udp") {
-    entry.srcpt = htons(nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
-    entry.dstpt = htons(nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST));
+  if (entry->proto == "tcp" || entry->proto == "udp") {
+    entry->srcpt = htons(nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
+    entry->dstpt = htons(nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST));
   }
 
-  if (entry.proto == "tcp") {
-    entry.state = states[nfct_get_attr_u8(ct, ATTR_TCP_STATE)];
+  if (entry->proto == "tcp") {
+    entry->state = states[nfct_get_attr_u8(ct, ATTR_TCP_STATE)];
     counts->tcp++;
-  } else if (entry.proto == "udp") {
-    entry.state = "";
+  } else if (entry->proto == "udp") {
+    entry->state = "";
     counts->udp++;
-  } else if (entry.proto == "icmp" || entry.proto == "icmp6") {
+  } else if (entry->proto == "icmp" || entry->proto == "icmp6") {
     buffer.str("");
     buffer << (int)nfct_get_attr_u8(ct, ATTR_ICMP_TYPE) << "/"
         << (int)nfct_get_attr_u8(ct, ATTR_ICMP_CODE) << " ("
         << nfct_get_attr_u16(ct, ATTR_ICMP_ID) << ")";
-    entry.state = buffer.str();
+    entry->state = buffer.str();
     counts->icmp++;
-    if (entry.state.size() > max->state)
-      max->state = entry.state.size();
+    if (entry->state.size() > max->state)
+      max->state = entry->state.size();
   } else {
     counts->other++;
   }
@@ -1090,37 +1071,37 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   struct in6_addr lb6;
   inet_pton(AF_INET, "127.0.0.1", &lb);
   inet_pton(AF_INET6, "::1", &lb6);
-  size_t entrysize = entry.family == AF_INET
+  size_t entrysize = entry->family == AF_INET
     ? sizeof(in_addr)
     : sizeof(in6_addr);
-  if (flags->skiplb && (entry.family == AF_INET
-                        ? !memcmp(&entry.src, &lb, sizeof(in_addr)) 
-                        : !memcmp(&entry.src, &lb6, sizeof(in6_addr)))) {
+  if (flags->skiplb && (entry->family == AF_INET
+                        ? !memcmp(&(entry->src), &lb, sizeof(in_addr))
+                        : !memcmp(&(entry->src), &lb6, sizeof(in6_addr)))) {
     counts->skipped++;
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->skipdns && (entry.dstpt == 53)) {
+  if (flags->skipdns && (entry->dstpt == 53)) {
     counts->skipped++;
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_src && (memcmp(&entry.src, &(filters->src), entrysize))) {
+  if (flags->filter_src && (memcmp(&(entry->src), &(filters->src), entrysize))) {
     counts->skipped++;
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_srcpt && (entry.srcpt != filters->srcpt)) {
+  if (flags->filter_srcpt && (entry->srcpt != filters->srcpt)) {
     counts->skipped++;
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_dst && (memcmp(&entry.dst, &(filters->dst), entrysize))) {
+  if (flags->filter_dst && (memcmp(&(entry->dst), &(filters->dst), entrysize))) {
     counts->skipped++;
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_dstpt && (entry.dstpt != filters->dstpt)) {
+  if (flags->filter_dstpt && (entry->dstpt != filters->dstpt)) {
     counts->skipped++;
     return NFCT_CB_CONTINUE; 
   }
@@ -1147,7 +1128,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
  * For the new libnetfilter_conntrack code, the bulk of build_table was moved
  * to the conntrack callback function.
  */
-void build_table(flags_t &flags, const filters_t &filters, vector<table_t>
+void build_table(flags_t &flags, const filters_t &filters, vector<table_t*>
                  &stable, counters_t &counts, max_t &max)
 {
   /*
@@ -1172,6 +1153,14 @@ void build_table(flags_t &flags, const filters_t &filters, vector<table_t>
   /*
    * Initialization
    */
+  // Nuke the table_t's we made before deleting the vector of pointers
+  for (
+      vector<table_t*>::iterator it = stable.begin();
+      it != stable.end();
+      it++
+  ) {
+    delete *it;
+  }
   stable.clear();
   counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped = 0;
 
@@ -1189,69 +1178,67 @@ void build_table(flags_t &flags, const filters_t &filters, vector<table_t>
     exit(2);
   }
   nfct_close(cth);
-
 }
 
 /*
  * This sorts the table based on the current sorting preference
  */
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
-                vector<table_t> &stable, string &sorting)
+                vector<table_t*> &stable, string &sorting)
 {
-
   switch (sortby) {
     case SORT_SRC:
       if (lookup) {
-        qsort(&(stable[0]), stable.size(), sizeof(table_t), sname_sort);
+        std::sort(stable.begin(), stable.end(), srcname_sort);
         sorting = "SrcName";
       } else {
-        qsort(&(stable[0]), stable.size(), sizeof(table_t), src_sort);
+        std::sort(stable.begin(), stable.end(), src_sort);
         sorting = "SrcIP";
       }
       break;
 
     case SORT_SRC_PT:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), srcpt_sort);
+      std::sort(stable.begin(), stable.end(), srcpt_sort);
       sorting = "SrcPort";
       break;
 
     case SORT_DST:
       if (lookup) {
-        qsort(&(stable[0]), stable.size(), sizeof(table_t), dname_sort);
+        std::sort(stable.begin(), stable.end(), dstname_sort);
         sorting = "DstName";
       } else {
-        qsort(&(stable[0]), stable.size(), sizeof(table_t), dst_sort);
+        std::sort(stable.begin(), stable.end(), dst_sort);
         sorting = "DstIP";
       }
       break;
 
     case SORT_DST_PT:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), dstpt_sort);
+      std::sort(stable.begin(), stable.end(), dstpt_sort);
       sorting = "DstPort";
       break;
 
     case SORT_PROTO:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), proto_sort);
+      std::sort(stable.begin(), stable.end(), proto_sort);
       sorting = "Prt";
       break;
 
     case SORT_STATE:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), state_sort);
+      std::sort(stable.begin(), stable.end(), state_sort);
       sorting = "State";
       break;
 
     case SORT_TTL:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), ttl_sort);
+      std::sort(stable.begin(), stable.end(), ttl_sort);
       sorting = "TTL";
       break;
 
     case SORT_BYTES:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), bytes_sort);
+      std::sort(stable.begin(), stable.end(), bytes_sort);
       sorting = "Bytes";
       break;
 
     case SORT_PACKETS:
-      qsort(&(stable[0]), stable.size(), sizeof(table_t), packets_sort);
+      std::sort(stable.begin(), stable.end(), packets_sort);
       sorting = "Packets";
       break;
 
@@ -1423,48 +1410,48 @@ void truncate(string &string, int length, bool mark, char direction)
  * generate the host:port strings and drop them off in the src/dst string
  * objects passed in.
  */
-void format_src_dst(table_t &table, string &src, string &dst,
+void format_src_dst(table_t *table, string &src, string &dst,
                       const flags_t &flags, const max_t &max)
 {
   ostringstream buffer;
-  bool have_port = table.proto == "tcp" || table.proto == "udp";
+  bool have_port = table->proto == "tcp" || table->proto == "udp";
   char direction;
   unsigned int length;
 
   // What length would we currently use?
-  length = table.sname.size();
+  length = table->sname.size();
   if (have_port)
-    length += table.spname.size() + 1;
+    length += table->spname.size() + 1;
 
   // If it's too long, figure out how room we have and truncate it
   if (length > max.src) {
     length = max.src;
     if (have_port)
-      length -= 1 + table.spname.size();
+      length -= 1 + table->spname.size();
     direction = (flags.lookup) ? 'e' : 'f';
-    truncate(table.sname, length, flags.tag_truncate, direction);
+    truncate(table->sname, length, flags.tag_truncate, direction);
   }
 
   // ... and repeat
-  length = table.dname.size();
+  length = table->dname.size();
   if (have_port)
-    length += table.dpname.size() + 1;
+    length += table->dpname.size() + 1;
   if (length > max.dst) {
     length = max.dst;
     if (have_port)
-      length -= 1 + table.dpname.size();
+      length -= 1 + table->dpname.size();
     direction = (flags.lookup) ? 'f' : 'e';
-    truncate(table.dname, length, flags.tag_truncate, direction);
+    truncate(table->dname, length, flags.tag_truncate, direction);
   }
 
-  buffer << table.sname;
+  buffer << table->sname;
   if (have_port)
-    buffer << ":" << table.spname;
+    buffer << ":" << table->spname;
   src = buffer.str();
   buffer.str("");
-  buffer << table.dname;
+  buffer << table->dname;
   if (have_port)
-    buffer << ":" << table.dpname;
+    buffer << ":" << table->dpname;
   dst = buffer.str();
   buffer.str("");
 }
@@ -1472,7 +1459,7 @@ void format_src_dst(table_t &table, string &src, string &dst,
 /*
  * An abstraction of priting a line for both single/curses modes
  */
-void printline(table_t &table, const flags_t &flags, const string &format,
+void printline(table_t *table, const flags_t &flags, const string &format,
                const max_t &max, WINDOW *mainwin, const bool curr)
 {
   ostringstream buffer;
@@ -1483,29 +1470,29 @@ void printline(table_t &table, const flags_t &flags, const string &format,
   format_src_dst(table, src, dst, flags, max);
 
   if (flags.counters) {
-    buffer << table.bytes;
+    buffer << table->bytes;
     b = buffer.str();
     buffer.str("");
-    buffer << table.packets;
+    buffer << table->packets;
     p = buffer.str();
     buffer.str("");
   }
     
   if (flags.single) {
     if (flags.counters)
-      printf(format.c_str(), src.c_str(), dst.c_str(), table.proto.c_str(),
-             table.state.c_str(), table.ttl.c_str(), b.c_str(), p.c_str());
+      printf(format.c_str(), src.c_str(), dst.c_str(), table->proto.c_str(),
+             table->state.c_str(), table->ttl.c_str(), b.c_str(), p.c_str());
     else
-      printf(format.c_str(), src.c_str(), dst.c_str(), table.proto.c_str(),
-             table.state.c_str(), table.ttl.c_str());
+      printf(format.c_str(), src.c_str(), dst.c_str(), table->proto.c_str(),
+             table->state.c_str(), table->ttl.c_str());
   } else {
     int color = 0;
     if (!flags.nocolor) {
-      if (table.proto == "tcp")
+      if (table->proto == "tcp")
         color = 1;
-      else if (table.proto == "udp")
+      else if (table->proto == "udp")
         color = 2;
-      else if (table.proto == "icmp" || table.proto == "icmp6")
+      else if (table->proto == "icmp" || table->proto == "icmp6")
         color = 3;
       if (curr)
         color += 4;
@@ -1513,11 +1500,11 @@ void printline(table_t &table, const flags_t &flags, const string &format,
     }
     if (flags.counters)
       wprintw(mainwin, format.c_str(), src.c_str(), dst.c_str(),
-              table.proto.c_str(), table.state.c_str(), table.ttl.c_str(),
+              table->proto.c_str(), table->state.c_str(), table->ttl.c_str(),
               b.c_str(), p.c_str());
     else
       wprintw(mainwin, format.c_str(), src.c_str(), dst.c_str(),
-              table.proto.c_str(), table.state.c_str(), table.ttl.c_str());
+              table->proto.c_str(), table->state.c_str(), table->ttl.c_str());
 
     if (!flags.nocolor && color != 0)
       wattroff(mainwin, COLOR_PAIR(color));
@@ -1528,13 +1515,12 @@ void printline(table_t &table, const flags_t &flags, const string &format,
  * This does all the work of actually printing the table including
  * various bits of formatting. It handles both curses and non-curses runs.
  */
-void print_table(vector<table_t> &stable, const flags_t &flags,
+void print_table(vector<table_t*> &stable, const flags_t &flags,
                  const string &format, const string &sorting,
                  const filters_t &filters, const counters_t &counts,
                  const screensize_t &ssize, const max_t &max, WINDOW *mainwin,
                  unsigned int &curr)
 {
-
   /*
    * Print headers
    */
@@ -2141,7 +2127,7 @@ int main(int argc, char *argv[])
   string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins,
       secs, hrs, sorting, tmpstring, format, prompt;
   ostringstream ostream;
-  vector<table_t> stable;
+  vector<table_t*> stable;
   int tmpint = 0, sortby = 0, rate = 1, hdrs = 0;
   unsigned int py = 0, px = 0, curr_state = 0;
   timeval selecttimeout;
@@ -2193,6 +2179,7 @@ int main(int argc, char *argv[])
   // Command Line Arguments
   while ((tmpint = getopt_long(argc, argv, "Cd:D:hlmcoLfpR:r1b:s:S:tv",
                                long_options, &option_index)) != EOF) {
+    printf("loop: %d\n", tmpint);
     switch (tmpint) {
     case 0:
       /* Apparently this test is needed?! Seems lame! */
@@ -2286,9 +2273,9 @@ int main(int argc, char *argv[])
     case 'b':
       if (*optarg == 'd')
         sortby = SORT_DST;
-      else if (*optarg == 'D')
+      else if (*optarg == 'D') {
         sortby = SORT_DST_PT;
-      else if (*optarg == 'S')
+      } else if (*optarg == 'S')
         sortby = SORT_SRC_PT;
       else if (*optarg == 'p')
         sortby = SORT_PROTO;
@@ -2417,7 +2404,7 @@ int main(int argc, char *argv[])
      * callback is twice the calls per-state if they are enabled,
      * for no additional benefit.
      */
-    if (flags.counters && stable.size() > 0 && stable[0].bytes == 0) {
+    if (flags.counters && stable.size() > 0 && stable[0]->bytes == 0) {
       prompt = "Counters requested, but not enabled in the";
       prompt += " kernel!";
       flags.counters = 0;
