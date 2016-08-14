@@ -2296,12 +2296,10 @@ int main(int argc, char *argv[])
         sortby = SORT_STATE;
       else if (*optarg == 't')
         sortby = SORT_TTL;
-      else if (*optarg == 'b')
+      else if (*optarg == 'b' && flags.counters)
         sortby = SORT_BYTES;
-      else if (*optarg == 'P')
+      else if (*optarg == 'P' && flags.counters)
         sortby = SORT_PACKETS;
-      if (!flags.counters)
-        sortby = SORT_SRC;
       break;
     // --single
     case '1':
