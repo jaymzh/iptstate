@@ -1,3 +1,9 @@
+2.2.6
+- Released 08/14/16
+- Fix `-b` option which didn't work in many cases
+- When we turn `lookup` mode on, automatically turn `skipdns` mode on
+- Move to dynamic memory for state entries. Fixes #3
+
 2.2.5
 - Released 06/01/12
 - Full support for ICMP6 including code/type display and state deletion
