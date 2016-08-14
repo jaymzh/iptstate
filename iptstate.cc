@@ -136,7 +136,7 @@ static const char *states[] = {
  * STRUCTS
  */
 // One state-table entry
-struct table_t {
+struct tentry_t {
   string proto, state, ttl, sname, dname, spname, dpname;
   in6_addr src, dst;
   uint8_t family;
@@ -168,7 +168,7 @@ struct max_t {
   unsigned long bytes, packets;
 };
 struct hook_data {
-  vector<table_t*> *stable;
+  vector<tentry_t*> *stable;
   flags_t *flags;
   max_t *max;
   counters_t *counts;
@@ -349,7 +349,7 @@ void resolve_port(const unsigned int &port, string &name, const string &proto)
  * NOTE: We stringify addresses largely because in the IPv6 case we need
  * to treat them like truncate-able strings.
  */
-void stringify_entry(table_t *entry, max_t &max, const flags_t &flags)
+void stringify_entry(tentry_t *entry, max_t &max, const flags_t &flags)
 {
   unsigned int size = 0;
   ostringstream buffer;
@@ -397,7 +397,7 @@ void stringify_entry(table_t *entry, max_t &max, const flags_t &flags)
 /*
  * SORT FUNCTIONS
  */
-bool src_sort(table_t *one, table_t *two)
+bool src_sort(tentry_t *one, tentry_t *two)
 {
   /*
    * memcmp() will properly sort v4 or v6 addresses, but not cross-family
@@ -414,12 +414,12 @@ bool src_sort(table_t *one, table_t *two)
   }
 }
 
-bool srcname_sort(table_t *one, table_t *two)
+bool srcname_sort(tentry_t *one, tentry_t *two)
 {
   return one->sname.compare(two->sname) * sort_factor < 0;
 }
 
-bool dst_sort(table_t *one, table_t *two)
+bool dst_sort(tentry_t *one, tentry_t *two)
 {
   // See src_sort() for details
   if (one->family == two->family) {
@@ -431,7 +431,7 @@ bool dst_sort(table_t *one, table_t *two)
   }
 }
 
-bool dstname_sort(table_t *one, table_t *two)
+bool dstname_sort(tentry_t *one, tentry_t *two)
 {
   return one->dname.compare(two->dname) * sort_factor < 0;
 }
@@ -445,37 +445,37 @@ bool cmpint(int one, int two)
   return (sort_factor > 0) ? one < two : one > two;
 }
 
-bool srcpt_sort(table_t *one, table_t *two)
+bool srcpt_sort(tentry_t *one, tentry_t *two)
 {
   return cmpint(one->srcpt, two->srcpt);
 }
 
-bool dstpt_sort(table_t *one, table_t *two)
+bool dstpt_sort(tentry_t *one, tentry_t *two)
 {
   return cmpint(one->dstpt, two->dstpt);
 }
 
-bool proto_sort(table_t *one, table_t *two)
+bool proto_sort(tentry_t *one, tentry_t *two)
 {
   return one->proto.compare(two->proto) * sort_factor < 0;
 }
 
-bool state_sort(table_t *one, table_t *two)
+bool state_sort(tentry_t *one, tentry_t *two)
 {
   return one->state.compare(two->state) * sort_factor < 0;
 }
 
-bool ttl_sort(table_t *one, table_t *two)
+bool ttl_sort(tentry_t *one, tentry_t *two)
 {
   return one->ttl.compare(two->ttl) * sort_factor < 0;
 }
 
-bool bytes_sort(table_t *one, table_t *two)
+bool bytes_sort(tentry_t *one, tentry_t *two)
 {
   return cmpint(one->bytes, two->bytes);
 }
 
-bool packets_sort(table_t *one, table_t *two)
+bool packets_sort(tentry_t *one, tentry_t *two)
 {
   return cmpint(one->packets, two->packets);
 }
@@ -852,7 +852,7 @@ void handle_resize(WINDOW *&win, const flags_t &flags, screensize_t &ssize)
 /*
  * Take in a 'curr' value, and delete a given conntrack
  */
-void delete_state(WINDOW *&win, const table_t *entry, const flags_t &flags)
+void delete_state(WINDOW *&win, const tentry_t *entry, const flags_t &flags)
 {
   struct nfct_handle *cth;
   struct nf_conntrack *ct;
@@ -945,14 +945,14 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   /*
    * and pull out the pieces
    */
-  vector<table_t*> *stable = data->stable;
+  vector<tentry_t*> *stable = data->stable;
   flags_t *flags = data->flags;
   max_t *max = data->max;
   counters_t *counts = data->counts;
   const filters_t *filters = data->filters;
 
   // our table entry
-  table_t *entry = new table_t;
+  tentry_t *entry = new tentry_t;
 
   // some vars
   struct protoent* pe = NULL;
@@ -1128,7 +1128,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
  * For the new libnetfilter_conntrack code, the bulk of build_table was moved
  * to the conntrack callback function.
  */
-void build_table(flags_t &flags, const filters_t &filters, vector<table_t*>
+void build_table(flags_t &flags, const filters_t &filters, vector<tentry_t*>
                  &stable, counters_t &counts, max_t &max)
 {
   /*
@@ -1153,9 +1153,9 @@ void build_table(flags_t &flags, const filters_t &filters, vector<table_t*>
   /*
    * Initialization
    */
-  // Nuke the table_t's we made before deleting the vector of pointers
+  // Nuke the tentry_t's we made before deleting the vector of pointers
   for (
-      vector<table_t*>::iterator it = stable.begin();
+      vector<tentry_t*>::iterator it = stable.begin();
       it != stable.end();
       it++
   ) {
@@ -1184,7 +1184,7 @@ void build_table(flags_t &flags, const filters_t &filters, vector<table_t*>
  * This sorts the table based on the current sorting preference
  */
 void sort_table(const int &sortby, const bool &lookup, const int &sort_factor,
-                vector<table_t*> &stable, string &sorting)
+                vector<tentry_t*> &stable, string &sorting)
 {
   switch (sortby) {
     case SORT_SRC:
@@ -1410,7 +1410,7 @@ void truncate(string &string, int length, bool mark, char direction)
  * generate the host:port strings and drop them off in the src/dst string
  * objects passed in.
  */
-void format_src_dst(table_t *table, string &src, string &dst,
+void format_src_dst(tentry_t *table, string &src, string &dst,
                       const flags_t &flags, const max_t &max)
 {
   ostringstream buffer;
@@ -1459,7 +1459,7 @@ void format_src_dst(table_t *table, string &src, string &dst,
 /*
  * An abstraction of priting a line for both single/curses modes
  */
-void printline(table_t *table, const flags_t &flags, const string &format,
+void printline(tentry_t *table, const flags_t &flags, const string &format,
                const max_t &max, WINDOW *mainwin, const bool curr)
 {
   ostringstream buffer;
@@ -1515,7 +1515,7 @@ void printline(table_t *table, const flags_t &flags, const string &format,
  * This does all the work of actually printing the table including
  * various bits of formatting. It handles both curses and non-curses runs.
  */
-void print_table(vector<table_t*> &stable, const flags_t &flags,
+void print_table(vector<tentry_t*> &stable, const flags_t &flags,
                  const string &format, const string &sorting,
                  const filters_t &filters, const counters_t &counts,
                  const screensize_t &ssize, const max_t &max, WINDOW *mainwin,
@@ -2127,7 +2127,7 @@ int main(int argc, char *argv[])
   string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins,
       secs, hrs, sorting, tmpstring, format, prompt;
   ostringstream ostream;
-  vector<table_t*> stable;
+  vector<tentry_t*> stable;
   int tmpint = 0, sortby = 0, rate = 1, hdrs = 0;
   unsigned int py = 0, px = 0, curr_state = 0;
   timeval selecttimeout;
