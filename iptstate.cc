@@ -427,7 +427,7 @@ bool dst_sort(table_t *one, table_t *two)
   } else if (one->family == AF_INET) {
     return sort_factor > 0;
   } else {
-    return sort_factor > 0;
+    return sort_factor < 0;
   }
 }
 
