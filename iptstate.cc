@@ -2183,7 +2183,6 @@ int main(int argc, char *argv[])
   // Command Line Arguments
   while ((tmpint = getopt_long(argc, argv, "Cd:D:hlmcoLfpR:r1b:s:S:tv",
                                long_options, &option_index)) != EOF) {
-    printf("loop: %d\n", tmpint);
     switch (tmpint) {
     case 0:
       /* Apparently this test is needed?! Seems lame! */
