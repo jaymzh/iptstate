@@ -920,7 +920,7 @@ void delete_state(WINDOW *&win, const tentry_t *entry, const flags_t &flags)
   if (ret < 0) {
     string msg = "Failed to delete state: ";
     msg += strerror(errno);
-    c_warn(win, msg.c_str(), flags);
+    c_warn(win, msg, flags);
   }
 
 }
