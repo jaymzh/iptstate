@@ -743,10 +743,6 @@ void c_warn(WINDOW *win, const string &warning, const flags_t &flags)
    */
   
   int x, y;
-  if (flags.single) {
-    cerr << warning << endl;
-    return;
-  }
   getmaxyx(stdscr, y, x);
   WINDOW *warn = subpad(win, 1, x, 0, 0);
   if (!flags.nocolor)
