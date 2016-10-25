@@ -2407,7 +2407,10 @@ int main(int argc, char *argv[])
       prompt = "Counters requested, but not enabled in the";
       prompt += " kernel!";
       flags.counters = 0;
-      c_warn(mainwin, prompt, flags);
+      if (flags.single)
+	  cerr << prompt << endl;
+      else
+	  c_warn(mainwin, prompt, flags);
     }
 
     // Sort our table
