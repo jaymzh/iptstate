@@ -62,6 +62,7 @@ extern "C" {
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 using namespace std;
 
 #define VERSION "2.2.6"
@@ -588,8 +589,15 @@ screensize_t get_size(const bool &single)
     getmaxyx(stdscr, maxy, maxx);
   } else {                             
     maxx = 72;
+
+    // https://stackoverflow.com/questions/1022957/
+    struct winsize w;
+    ioctl(0, TIOCGWINSZ, &w);
+    maxx = w.ws_col;
+
     if (getenv("COLS"))
       maxx=atoi(getenv("COLS"));
+
   }
 
   screensize_t a;
