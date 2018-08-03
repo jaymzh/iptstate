@@ -1586,7 +1586,10 @@ void determine_format(WINDOW *mainwin, max_t &max, screensize_t &ssize,
          */
   if (ssize.x < 85 && flags.counters && !flags.lookup) {
     string prompt = "Window too narrow for counters! Disabling.";
-    c_warn(mainwin, prompt, flags);
+    if (flags.single)
+      cerr << prompt << endl;
+    else
+      c_warn(mainwin, prompt, flags);
     flags.counters = false;
   }
 
