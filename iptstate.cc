@@ -587,17 +587,14 @@ screensize_t get_size(const bool &single)
   int maxx = 0, maxy = 0;
   if (!single) {          
     getmaxyx(stdscr, maxy, maxx);
-  } else {                             
-    maxx = 72;
-
+  } else {
     // https://stackoverflow.com/questions/1022957/
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
     maxx = w.ws_col;
 
     if (getenv("COLS"))
-      maxx=atoi(getenv("COLS"));
-
+      maxx = atoi(getenv("COLS"));
   }
 
   screensize_t a;
