@@ -62,6 +62,7 @@ extern "C" {
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 using namespace std;
 
 #define VERSION "2.2.6"
@@ -586,10 +587,14 @@ screensize_t get_size(const bool &single)
   int maxx = 0, maxy = 0;
   if (!single) {          
     getmaxyx(stdscr, maxy, maxx);
-  } else {                             
-    maxx = 72;
+  } else {
+    // https://stackoverflow.com/questions/1022957/
+    struct winsize w;
+    ioctl(0, TIOCGWINSZ, &w);
+    maxx = w.ws_col;
+
     if (getenv("COLS"))
-      maxx=atoi(getenv("COLS"));
+      maxx = atoi(getenv("COLS"));
   }
 
   screensize_t a;
@@ -1586,7 +1591,10 @@ void determine_format(WINDOW *mainwin, max_t &max, screensize_t &ssize,
          */
   if (ssize.x < 85 && flags.counters && !flags.lookup) {
     string prompt = "Window too narrow for counters! Disabling.";
-    c_warn(mainwin, prompt, flags);
+    if (flags.single)
+      cerr << prompt << endl;
+    else
+      c_warn(mainwin, prompt, flags);
     flags.counters = false;
   }
 
