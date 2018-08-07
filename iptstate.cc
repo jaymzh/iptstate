@@ -1853,16 +1853,14 @@ void interactive_help(const string &sorting, const flags_t &flags,
 
   char tmp[NAMELEN];
   if (flags.filter_src) {
-    inet_ntop(filters.srcfam, &filters.src, tmp,
-              filters.srcfam == AF_INET ? sizeof(in_addr) : sizeof(in6_addr));
+    inet_ntop(filters.srcfam, &filters.src, tmp, NAMELEN-1);
     mvwaddstr(helpwin, y++, x, "  Source filter: ");
     wattron(helpwin, A_BOLD);
     waddstr(helpwin, tmp);
     wattroff(helpwin, A_BOLD);
   }
   if (flags.filter_dst) {
-    inet_ntop(filters.dstfam, &filters.dst, tmp,
-              filters.dstfam == AF_INET ? sizeof(in_addr) : sizeof(in6_addr));
+    inet_ntop(filters.dstfam, &filters.dst, tmp, NAMELEN-1);
     mvwaddstr(helpwin, y++, x, "  Destination filter: ");
     wattron(helpwin, A_BOLD);
     waddstr(helpwin, tmp);
