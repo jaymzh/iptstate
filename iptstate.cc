@@ -1093,43 +1093,33 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_inv) {
-    if (flags->filter_src && ! (memcmp(&(entry->src), &(filters->src), entrysize))) {
+  if (flags->filter_src) {
+    if ((flags->filter_inv && !memcmp(&(entry->src), &(filters->src), entrysize)) || 
+    (!flags->filter_inv && memcmp(&(entry->src), &(filters->src), entrysize))) {
       counts->skipped++;
       return NFCT_CB_CONTINUE;
     }
+  }
 
-    if (flags->filter_srcpt && (entry->srcpt == filters->srcpt)) {
+  if (flags->filter_srcpt) {
+    if ((flags->filter_inv && entry->srcpt == filters->srcpt) || 
+    (!flags->filter_inv && entry->srcpt != filters->srcpt)) {
       counts->skipped++;
       return NFCT_CB_CONTINUE;
     }
+  }
 
-    if (flags->filter_dst && ! (memcmp(&(entry->dst), &(filters->dst), entrysize))) {
+  if (flags->filter_dst) {
+    if ((flags->filter_inv && !memcmp(&(entry->dst), &(filters->dst), entrysize)) || 
+    (!flags->filter_inv && memcmp(&(entry->dst), &(filters->dst), entrysize))) {
       counts->skipped++;
       return NFCT_CB_CONTINUE;
     }
+  }
 
-    if (flags->filter_dstpt && (entry->dstpt == filters->dstpt)) {
-      counts->skipped++;
-      return NFCT_CB_CONTINUE;
-    }
-  } else {
-    if (flags->filter_src && (memcmp(&(entry->src), &(filters->src), entrysize))) {
-      counts->skipped++;
-      return NFCT_CB_CONTINUE;
-    }
-
-    if (flags->filter_srcpt && (entry->srcpt != filters->srcpt)) {
-      counts->skipped++;
-      return NFCT_CB_CONTINUE;
-    }
-
-    if (flags->filter_dst && (memcmp(&(entry->dst), &(filters->dst), entrysize))) {
-      counts->skipped++;
-      return NFCT_CB_CONTINUE;
-    }
-
-    if (flags->filter_dstpt && (entry->dstpt != filters->dstpt)) {
+  if (flags->filter_dstpt) {
+    if ((flags->filter_inv && entry->dstpt == filters->dstpt) || 
+    (!flags->filter_inv && entry->dstpt != filters->dstpt)) {
       counts->skipped++;
       return NFCT_CB_CONTINUE;
     }
