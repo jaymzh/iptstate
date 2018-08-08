@@ -59,6 +59,7 @@
 extern "C" {
   #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 };
+#include <locale.h>
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
@@ -717,6 +718,7 @@ void get_input(WINDOW *win, string &input, const string &prompt,
       // 8 is shift-backspace - just incase
       case KEY_BACKSPACE:
       case 8:
+      case 127:
         if (charcount > 0) {
           input = input.substr(0, input.size()-1);
           wechochar(cmd, '\b');
@@ -2159,6 +2161,8 @@ out:
  */
 int main(int argc, char *argv[])
 {
+  // Use the locale specified by the environment
+  setlocale(LC_ALL, "");
 
   // Variables
   string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins,
@@ -2450,9 +2454,9 @@ int main(int argc, char *argv[])
       prompt += " kernel!";
       flags.counters = 0;
       if (flags.single)
-	  cerr << prompt << endl;
+        cerr << prompt << endl;
       else
-	  c_warn(mainwin, prompt, flags);
+        c_warn(mainwin, prompt, flags);
     }
 
     // Sort our table
