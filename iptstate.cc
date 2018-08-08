@@ -59,6 +59,8 @@
 extern "C" {
   #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 };
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
@@ -160,6 +162,8 @@ struct counters_t {
 // Various filters to be applied pending the right flags in flags_t
 struct filters_t {
   in6_addr src, dst;
+  bool has_srcnet, has_dstnet;
+  uint8_t srcnet, dstnet;
   uint8_t srcfam, dstfam;
   unsigned long srcpt, dstpt;
 };
@@ -223,19 +227,79 @@ unsigned int digits(unsigned long x)
 }
 
 /*
- * Check to ensure an IP is valid
+ * Check to ensure an IP & netmask are valid
  */
-bool check_ip(const char *arg, in6_addr *addr, uint8_t *family)
+bool check_ip(const char *arg, in6_addr *addr, uint8_t *family, uint8_t *netmask, bool *has_netmask)
 {
+  const char *p_arg;
+  char ip[NAMELEN];
+
+  // Check for netmask prefix
+  p_arg = strrchr(arg, '/');
+  if (p_arg == NULL) {
+    memcpy(ip, arg, NAMELEN);
+    *has_netmask = false;
+  } else {
+    size_t ip_len = strlen(arg) - strlen(p_arg);
+    memcpy(ip, arg, ip_len);
+    ip[ip_len] = '\0';
+
+    int tmp = atoi(arg + ip_len + 1);
+    if (tmp > 128) return false;  // Max IPv6 prefix length
+    *has_netmask = true;
+    *netmask = (uint8_t) tmp;
+  }
+
+  // Get IP
   int ret;
-  ret = inet_pton(AF_INET6, arg, addr);
+  ret = inet_pton(AF_INET6, ip, addr);
   if (ret) {
     *family = AF_INET6;
     return true;
   }
-  ret = inet_pton(AF_INET, arg, addr);
+  ret = inet_pton(AF_INET, ip, addr);
   if (ret) {
+    if (has_netmask && *netmask > 32) return false; // Max IPv4 prefix length
     *family = AF_INET;
+    return true;
+  }
+  return false;
+}
+
+/*
+ * Compare IPv4/6 addresses with a netmask 
+ * https://gist.github.com/duedal/b83303b4988a4afb2a75
+ */
+bool match_netmask(uint8_t family, const in6_addr &address, const in6_addr &network, uint8_t bits) {
+
+  if (family == AF_INET) {
+    if (bits == 0) {
+      // C99 6.5.7 (3): u32 << 32 is undefined behaviour
+      return true;
+    }
+
+    struct in_addr addr4, net4;
+    memcpy(&addr4, &address, sizeof(in_addr));
+    memcpy(&net4, &network, sizeof(in_addr));
+    return !((addr4.s_addr ^ net4.s_addr) & htonl(0xFFFFFFFFu << (32 - bits)));
+  } else {
+    const uint32_t *a = address.s6_addr32;
+    const uint32_t *n = network.s6_addr32;
+
+    int bits_whole, bits_incomplete;
+    bits_whole = bits >> 5;         // number of whole u32
+    bits_incomplete = bits & 0x1F;  // number of bits in incomplete u32
+    if (bits_whole) {
+      if (memcmp(a, n, bits_whole << 2)) {
+        return false;
+      }
+    }
+    if (bits_incomplete) {
+      uint32_t mask = htonl((0xFFFFFFFFu) << (32 - bits_incomplete));
+      if ((a[bits_whole] ^ n[bits_whole]) & mask) {
+        return false;
+      }
+    }
     return true;
   }
   return false;
@@ -257,10 +321,9 @@ void help()
   cout << "\tToggle color-code by protocol\n\n";
   cout << "  -C, --counters\n";
   cout << "\tToggle display of bytes/packets counters\n\n";
-  cout << "  -d, --dst-filter <IP>\n";
-  cout << "\tOnly show states with a destination of <IP>\n";
-  cout << "\tNote, that this must be an IP, hostname matching is"
-    << " not yet supported.\n\n";
+  cout << "  -d, --dst-filter <IP>[/<NETMASK>]\n";
+  cout << "\tOnly show states with a destination of <IP> and optional <NETMASK>\n";
+  cout << "\tNote: Hostname matching is not yet supported.\n\n";
   cout << "  -D --dstpt-filter <port>\n";
   cout << "\tOnly show states with a destination port of <port>\n\n";
   cout << "  -h, --help\n";
@@ -299,10 +362,9 @@ void help()
   cout << "\tNote that bytes/packets are only available when"
     << " supported in the kernel,\n";
   cout << "\tand enabled with -C\n\n";
-  cout << "  -s, --src-filter <IP>\n";
-  cout << "\tOnly show states with a source of <IP>\n";
-  cout << "\tNote, that this must be an IP, hostname matching is"
-    << " not yet supported.\n\n";
+  cout << "  -s, --src-filter <IP>[/<NETMASK>]\n";
+  cout << "\tOnly show states with a source of <IP> and optional <NETMASK>\n";
+  cout << "\tNote: Hostname matching is not yet supported.\n\n";
   cout << "  -S, --srcpt-filter <port>\n";
   cout << "\tOnly show states with a source port of <port>\n\n";
   cout << "  -t, --totals\n";
@@ -1093,9 +1155,17 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_src) {
+  if (flags->filter_src && !filters->has_srcnet) {
     if ((flags->filter_inv && !memcmp(&(entry->src), &(filters->src), entrysize)) || 
         (!flags->filter_inv && memcmp(&(entry->src), &(filters->src), entrysize))) {
+      counts->skipped++;
+      return NFCT_CB_CONTINUE;
+    }
+  }
+
+  if (flags->filter_src && filters->has_srcnet) {
+    if ((flags->filter_inv && match_netmask(entry->family, entry->src, filters->src, filters->srcnet)) || 
+        (!flags->filter_inv && !match_netmask(entry->family, entry->src, filters->src, filters->srcnet))) {
       counts->skipped++;
       return NFCT_CB_CONTINUE;
     }
@@ -1109,9 +1179,17 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
     }
   }
 
-  if (flags->filter_dst) {
+  if (flags->filter_dst && !filters->has_dstnet) {
     if ((flags->filter_inv && !memcmp(&(entry->dst), &(filters->dst), entrysize)) || 
         (!flags->filter_inv && memcmp(&(entry->dst), &(filters->dst), entrysize))) {
+      counts->skipped++;
+      return NFCT_CB_CONTINUE;
+    }
+  }
+
+  if (flags->filter_dst && filters->has_dstnet) {
+    if ((flags->filter_inv && match_netmask(entry->family, entry->dst, filters->dst, filters->dstnet)) || 
+        (!flags->filter_inv && !match_netmask(entry->family, entry->dst, filters->dst, filters->dstnet))) {
       counts->skipped++;
       return NFCT_CB_CONTINUE;
     }
@@ -1342,6 +1420,12 @@ void print_headers(const flags_t &flags, const string &format,
         printf("src: %s", tmp);
       else
         wprintw(mainwin, "src: %s", tmp);
+      if (filters.has_srcnet) {
+        if (flags.single)
+          printf("/%" PRIu8, filters.srcnet);
+        else
+          wprintw(mainwin, "/%" PRIu8, filters.srcnet);
+      }
       printed_a_filter = true;
     }
     if (flags.filter_srcpt) {
@@ -1369,6 +1453,12 @@ void print_headers(const flags_t &flags, const string &format,
         printf("dst: %s", tmp);
       else
         wprintw(mainwin, "dst: %s", tmp);
+      if (filters.has_dstnet) {
+        if (flags.single)
+          printf("/%" PRIu8, filters.dstnet);
+        else
+          wprintw(mainwin, "/%" PRIu8, filters.dstnet);
+      }
       printed_a_filter = true;
     }
     if (flags.filter_dstpt) {
@@ -1883,6 +1973,8 @@ void interactive_help(const string &sorting, const flags_t &flags,
     mvwaddstr(helpwin, y++, x, "  Source filter: ");
     wattron(helpwin, A_BOLD);
     waddstr(helpwin, tmp);
+    if (filters.has_srcnet)
+      wprintw(helpwin, "/%" PRIu8, filters.srcnet);
     wattroff(helpwin, A_BOLD);
   }
   if (flags.filter_dst) {
@@ -1890,6 +1982,8 @@ void interactive_help(const string &sorting, const flags_t &flags,
     mvwaddstr(helpwin, y++, x, "  Destination filter: ");
     wattron(helpwin, A_BOLD);
     waddstr(helpwin, tmp);
+    if (filters.has_dstnet)
+      wprintw(helpwin, "/%" PRIu8, filters.dstnet);
     wattroff(helpwin, A_BOLD);
   }
   if (flags.filter_srcpt) {
@@ -2245,7 +2339,7 @@ int main(int argc, char *argv[])
       if (optarg == NULL)
         break;
       // See check_ip() note above
-      if (!check_ip(optarg, &filters.dst, &filters.dstfam)) {
+      if (!check_ip(optarg, &filters.dst, &filters.dstfam, &filters.dstnet, &filters.has_dstnet)) {
         cerr << "Invalid IP address: " << optarg
           << endl;
         exit(1);
@@ -2337,7 +2431,7 @@ int main(int argc, char *argv[])
     case 's':
       if (optarg == NULL)
         break;
-      if (!check_ip(optarg, &filters.src, &filters.srcfam)) {
+      if (!check_ip(optarg, &filters.src, &filters.srcfam, &filters.srcnet, &filters.has_srcnet)) {
         cerr << "Invalid IP address: " << optarg << endl;
         exit(1);
       }
@@ -2592,7 +2686,7 @@ int main(int argc, char *argv[])
           flags.filter_dst = false;
           filters.dst = in6addr_any;
         } else {
-          if (!check_ip(tmpstring.c_str(), &filters.dst, &filters.dstfam)) {
+          if (!check_ip(tmpstring.c_str(), &filters.dst, &filters.dstfam, &filters.dstnet, &filters.has_dstnet)) {
             prompt = "Invalid IP,";
             prompt += " ignoring!";
             c_warn(mainwin, prompt, flags);
@@ -2637,7 +2731,7 @@ int main(int argc, char *argv[])
           flags.filter_src = false;
           filters.src = in6addr_any;
         } else {
-          if (!check_ip(tmpstring.c_str(), &filters.src, &filters.srcfam)) {
+          if (!check_ip(tmpstring.c_str(), &filters.src, &filters.srcfam, &filters.srcnet, &filters.has_srcnet)) {
             prompt = "Invalid IP,";
             prompt += " ignoring!";
             c_warn(mainwin, prompt, flags);
