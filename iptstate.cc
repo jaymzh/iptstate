@@ -150,7 +150,7 @@ struct screensize_t {
 // Struct 'o flags
 struct flags_t {
   bool single, totals, lookup, skiplb, staticsize, skipdns, tag_truncate,
-       filter_src, filter_dst, filter_srcpt, filter_dstpt, noscroll, nocolor,
+       filter_src, filter_dst, filter_srcpt, filter_dstpt, filter_inv, noscroll, nocolor,
        counters;
 };
 // Struct 'o counters
@@ -265,6 +265,8 @@ void help()
   cout << "\tOnly show states with a destination port of <port>\n\n";
   cout << "  -h, --help\n";
   cout << "\tThis help message\n\n";
+  cout << "  -i, --invert-filters\n";
+  cout << "\tInvert filters to display non-matching results\n\n";
   cout << "  -l, --lookup\n";
   cout << "\tShow hostnames instead of IP addresses. Enabling this will also"
     << " enable\n\t-L to prevent an ever-growing number of DNS requests.\n\n";
@@ -1091,24 +1093,36 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
     return NFCT_CB_CONTINUE;
   }
 
-  if (flags->filter_src && (memcmp(&(entry->src), &(filters->src), entrysize))) {
-    counts->skipped++;
-    return NFCT_CB_CONTINUE;
+  if (flags->filter_src) {
+    if ((flags->filter_inv && !memcmp(&(entry->src), &(filters->src), entrysize)) || 
+        (!flags->filter_inv && memcmp(&(entry->src), &(filters->src), entrysize))) {
+      counts->skipped++;
+      return NFCT_CB_CONTINUE;
+    }
   }
 
-  if (flags->filter_srcpt && (entry->srcpt != filters->srcpt)) {
-    counts->skipped++;
-    return NFCT_CB_CONTINUE;
+  if (flags->filter_srcpt) {
+    if ((flags->filter_inv && entry->srcpt == filters->srcpt) || 
+        (!flags->filter_inv && entry->srcpt != filters->srcpt)) {
+      counts->skipped++;
+      return NFCT_CB_CONTINUE;
+    }
   }
 
-  if (flags->filter_dst && (memcmp(&(entry->dst), &(filters->dst), entrysize))) {
-    counts->skipped++;
-    return NFCT_CB_CONTINUE;
+  if (flags->filter_dst) {
+    if ((flags->filter_inv && !memcmp(&(entry->dst), &(filters->dst), entrysize)) || 
+        (!flags->filter_inv && memcmp(&(entry->dst), &(filters->dst), entrysize))) {
+      counts->skipped++;
+      return NFCT_CB_CONTINUE;
+    }
   }
 
-  if (flags->filter_dstpt && (entry->dstpt != filters->dstpt)) {
-    counts->skipped++;
-    return NFCT_CB_CONTINUE; 
+  if (flags->filter_dstpt) {
+    if ((flags->filter_inv && entry->dstpt == filters->dstpt) || 
+        (!flags->filter_inv && entry->dstpt != filters->dstpt)) {
+      counts->skipped++;
+      return NFCT_CB_CONTINUE;
+    }
   }
 
   /*
@@ -1369,6 +1383,13 @@ void print_headers(const flags_t &flags, const string &format,
       else
         wprintw(mainwin, "dport: %lu", filters.dstpt);
       printed_a_filter = true;
+    }
+    if (flags.filter_inv) {
+      if (flags.single) {
+        printf(" (Inverted)");
+      } else {
+        wprintw(mainwin, " (Inverted)");
+      }
     }
     if (flags.single)
       printf("\n");
@@ -1851,18 +1872,21 @@ void interactive_help(const string &sorting, const flags_t &flags,
   waddstr(helpwin,(flags.counters) ? "yes" : "no");
   wattroff(helpwin, A_BOLD);
 
+  mvwaddstr(helpwin, y++, x, "  Invert filters: ");
+  wattron(helpwin, A_BOLD);
+  waddstr(helpwin,(flags.filter_inv) ? "yes" : "no");
+  wattroff(helpwin, A_BOLD);
+
   char tmp[NAMELEN];
   if (flags.filter_src) {
-    inet_ntop(filters.srcfam, &filters.src, tmp,
-              filters.srcfam == AF_INET ? sizeof(in_addr) : sizeof(in6_addr));
+    inet_ntop(filters.srcfam, &filters.src, tmp, NAMELEN-1);
     mvwaddstr(helpwin, y++, x, "  Source filter: ");
     wattron(helpwin, A_BOLD);
     waddstr(helpwin, tmp);
     wattroff(helpwin, A_BOLD);
   }
   if (flags.filter_dst) {
-    inet_ntop(filters.dstfam, &filters.dst, tmp,
-              filters.dstfam == AF_INET ? sizeof(in_addr) : sizeof(in6_addr));
+    inet_ntop(filters.dstfam, &filters.dst, tmp, NAMELEN-1);
     mvwaddstr(helpwin, y++, x, "  Destination filter: ");
     wattron(helpwin, A_BOLD);
     waddstr(helpwin, tmp);
@@ -1925,6 +1949,11 @@ void interactive_help(const string &sorting, const flags_t &flags,
   mvwaddstr(helpwin, y++, x, "  h");
   wattroff(helpwin, A_BOLD);
   waddstr(helpwin, "\tDisplay this help message");
+
+  wattron(helpwin, A_BOLD);
+  mvwaddstr(helpwin, y++, x, "  i");
+  wattroff(helpwin, A_BOLD);
+  waddstr(helpwin, "\tInvert filters to display non-matching results");
 
   wattron(helpwin, A_BOLD);
   mvwaddstr(helpwin, y++, x, "  l");
@@ -2152,7 +2181,7 @@ int main(int argc, char *argv[])
   flags.single = flags.totals = flags.lookup = flags.skiplb = flags.staticsize
       = flags.skipdns = flags.tag_truncate = flags.filter_src
       = flags.filter_dst = flags.filter_srcpt = flags.filter_dstpt
-      = flags.noscroll = flags.nocolor = flags.counters = false;
+      = flags.noscroll = flags.nocolor = flags.counters = flags.filter_inv = false;
   ssize.x = ssize.y = 0;
   counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped = 0;
   filters.src = filters.dst = in6addr_any;
@@ -2165,6 +2194,7 @@ int main(int argc, char *argv[])
     {"dst-filter", required_argument, 0, 'd'},
     {"dstpt-filter", required_argument, 0, 'D'},
     {"help", no_argument, 0, 'h'},
+    {"invert-filters", no_argument, 0, 'i'},
     {"lookup", no_argument, 0, 'l'},
     {"mark-truncated", no_argument, 0, 'm'},
     {"no-color", no_argument, 0, 'c'},
@@ -2185,7 +2215,7 @@ int main(int argc, char *argv[])
   int option_index = 0;
 
   // Command Line Arguments
-  while ((tmpint = getopt_long(argc, argv, "Cd:D:hlmcoLfpR:r1b:s:S:tv",
+  while ((tmpint = getopt_long(argc, argv, "Cd:D:hilmcoLfpR:r1b:s:S:tv",
                                long_options, &option_index)) != EOF) {
     switch (tmpint) {
     case 0:
@@ -2233,6 +2263,10 @@ int main(int argc, char *argv[])
         break;
       flags.filter_dstpt = true;
       filters.dstpt = atoi(optarg);
+      break;
+    // --invert-filters
+    case 'i':
+      flags.filter_inv = true;
       break;
     // --help
     case 'h':
@@ -2492,6 +2526,9 @@ int main(int argc, char *argv[])
         break;
       case 'h':
         interactive_help(sorting, flags, filters);
+        break;
+      case 'i':
+        flags.filter_inv = !flags.filter_inv;
         break;
       case 'l':
         flags.lookup = !flags.lookup;
