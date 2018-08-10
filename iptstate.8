@@ -28,7 +28,7 @@ Toggle color-code by protocol
 .B -C, --counters
 Toggle display of bytes/packets counters
 .TP
-.B -d, --dst-filter \fIIP/NETMASK\fP
+.B -d, --dst-filter \fIIP[/NETMASK]\fP
 Only show states with a destination of \fIIP\fP and with optional \fINETMASK\fP.
 .br
 Note, that this must be an IP, hostname matching is not yet supported.
@@ -98,7 +98,7 @@ Packets
 .br
 To sort by Source IP (or Name), don't use \-b. Sorting by bytes/packets is only available for kernels that support it, and only when compiled against libnetfilter_conntrack (the default).
 .TP
-.B -s, --src-filter \fIIP/NETMASK\fP
+.B -s, --src-filter \fIIP[/NETMASK]\fP
 Only show states with a source of \fIIP\fP and with optional \fINETMASK\fP.
 .br
 Note, that this must be an IP, hostname matching is not yet supported.
