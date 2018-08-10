@@ -59,6 +59,7 @@
 extern "C" {
   #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 };
+#include <locale.h>
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
@@ -714,9 +715,13 @@ void get_input(WINDOW *win, string &input, const string &prompt,
         wmove(win, 0, 0);
         return;
         break;
-      // 8 is shift-backspace - just incase
+      // on most platforms KEY_BACKSPACE will catch
+      // all backspaces...
       case KEY_BACKSPACE:
+      // but on some platforms ncurses fails, so ensure we catch both 8 (0x8) and 127 (0x7e)
+      // which are the two valid backspace keycodes
       case 8:
+      case 127:
         if (charcount > 0) {
           input = input.substr(0, input.size()-1);
           wechochar(cmd, '\b');
@@ -2159,6 +2164,8 @@ out:
  */
 int main(int argc, char *argv[])
 {
+  // Use the locale specified by the environment
+  setlocale(LC_ALL, "");
 
   // Variables
   string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins,
@@ -2450,9 +2457,9 @@ int main(int argc, char *argv[])
       prompt += " kernel!";
       flags.counters = 0;
       if (flags.single)
-	  cerr << prompt << endl;
+        cerr << prompt << endl;
       else
-	  c_warn(mainwin, prompt, flags);
+        c_warn(mainwin, prompt, flags);
     }
 
     // Sort our table
