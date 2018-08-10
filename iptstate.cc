@@ -715,8 +715,11 @@ void get_input(WINDOW *win, string &input, const string &prompt,
         wmove(win, 0, 0);
         return;
         break;
-      // 8 is shift-backspace - just incase
+      // on most platforms KEY_BACKSPACE will catch
+      // all backspaces...
       case KEY_BACKSPACE:
+      // but on some platforms ncurses fails, so ensure we catch both 8 (0x8) and 127 (0x7e)
+      // which are the two valid backspace keycodes
       case 8:
       case 127:
         if (charcount > 0) {
