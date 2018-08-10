@@ -237,15 +237,19 @@ bool check_ip(const char *arg, in6_addr *addr, uint8_t *family, uint8_t *netmask
   // Check for netmask prefix
   p_arg = strrchr(arg, '/');
   if (p_arg == NULL) {
-    memcpy(ip, arg, NAMELEN);
+    memcpy(ip, arg, (strlen(arg) + 1));
     *has_netmask = false;
   } else {
     size_t ip_len = strlen(arg) - strlen(p_arg);
     memcpy(ip, arg, ip_len);
     ip[ip_len] = '\0';
 
-    int tmp = atoi(arg + ip_len + 1);
-    if (tmp > 128) return false;  // Max IPv6 prefix length
+    const char *arg_net = arg + ip_len + 1;
+    if(arg_net[0] == '\0')
+      return false;
+    int tmp = atoi(arg_net);
+    if (tmp < 0 || tmp > 128)
+      return false; // Max IPv6 prefix length
     *has_netmask = true;
     *netmask = (uint8_t) tmp;
   }
@@ -259,7 +263,8 @@ bool check_ip(const char *arg, in6_addr *addr, uint8_t *family, uint8_t *netmask
   }
   ret = inet_pton(AF_INET, ip, addr);
   if (ret) {
-    if (has_netmask && *netmask > 32) return false; // Max IPv4 prefix length
+    if (*has_netmask && *netmask > 32)
+      return false; // Max IPv4 prefix length
     *family = AF_INET;
     return true;
   }
