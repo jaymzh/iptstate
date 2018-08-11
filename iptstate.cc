@@ -1735,22 +1735,24 @@ void interactive_help(const string &sorting, const flags_t &flags,
    * big we're going to create the pad.
    * 
    * In many cases we'd make the pad very very large and not
-   * worry about it. However, in this case:
-   *   1. We know exactly how big we need it to be, and it's
-   *      not going to change interactively.
-   *   2. We want to draw a "box" around the window and if the
-   *      pad is huge then the box will get drawn around that.
+   * worry about it. However, in this case, we want to draw 
+   * a "box" around the window and if the pad is huge then 
+   * the box will get drawn around that.
    *
-   * So... we have 45 lines of help, plus a top and bottom border,
-   * thus maxrows is 47.
+   * So... we have 41 lines of help, plus a top and bottom border,
+   * thus maxrows is 43. We also need to account for the filter settings
+   * that are only being displayed when enabled.
    *
-   * Our help text is not wider than 80, so we'll se that standard
+   * Our help text is not wider than 80, so we'll set that standard
    * width.
    *
    * If the screen is bigger than this, we deal with it below.
    */
-  unsigned int maxrows = 47;
+  unsigned int maxrows = 43;
   unsigned int maxcols = 80;
+
+  // Acount for dynamic filter settings
+  maxrows += flags.filter_src + flags.filter_srcpt + flags.filter_dst + flags.filter_dstpt;
 
   /*
    * The actual screen size
