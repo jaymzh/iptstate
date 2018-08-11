@@ -1741,15 +1741,15 @@ void interactive_help(const string &sorting, const flags_t &flags,
    *   2. We want to draw a "box" around the window and if the
    *      pad is huge then the box will get drawn around that.
    *
-   * So... we have 41 lines of help, plus a top and bottom border,
-   * thus maxrows is 43.
+   * So... we have 45 lines of help, plus a top and bottom border,
+   * thus maxrows is 47.
    *
    * Our help text is not wider than 80, so we'll se that standard
    * width.
    *
    * If the screen is bigger than this, we deal with it below.
    */
-  unsigned int maxrows = 43;
+  unsigned int maxrows = 47;
   unsigned int maxcols = 80;
 
   /*
