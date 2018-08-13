@@ -244,14 +244,14 @@ bool check_ip(const char *arg, in6_addr *addr, uint8_t *family, uint8_t *netmask
     memcpy(ip, arg, ip_len);
     ip[ip_len] = '\0';
 
-    const char *net_int = arg + ip_len + 1;
-    if (net_int[0] == '\0')
+    const char *net_arg = arg + ip_len + 1;
+    if (net_arg[0] == '\0')
       return false;
-    int tmp = atoi(net_int);
-    if (tmp < 0 || tmp > 128)
+    int net_int = atoi(net_arg);
+    if (net_int < 0 || net_int > 128)
       return false; // Max IPv6 prefix length
     *has_netmask = true;
-    *netmask = (uint8_t) tmp;
+    *netmask = (uint8_t) net_int;
   }
 
   // Get IP
