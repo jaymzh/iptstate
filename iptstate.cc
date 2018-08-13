@@ -61,6 +61,7 @@ extern "C" {
 };
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <locale.h>
 #include <netdb.h>
 #include <ncurses.h>
 #include <unistd.h>
@@ -780,9 +781,13 @@ void get_input(WINDOW *win, string &input, const string &prompt,
         wmove(win, 0, 0);
         return;
         break;
-      // 8 is shift-backspace - just incase
+      // on most platforms KEY_BACKSPACE will catch
+      // all backspaces...
       case KEY_BACKSPACE:
+      // but on some platforms ncurses fails, so ensure we catch both 8 (0x8) and 127 (0x7e)
+      // which are the two valid backspace keycodes
       case 8:
+      case 127:
         if (charcount > 0) {
           input = input.substr(0, input.size()-1);
           wechochar(cmd, '\b');
@@ -1824,22 +1829,24 @@ void interactive_help(const string &sorting, const flags_t &flags,
    * big we're going to create the pad.
    * 
    * In many cases we'd make the pad very very large and not
-   * worry about it. However, in this case:
-   *   1. We know exactly how big we need it to be, and it's
-   *      not going to change interactively.
-   *   2. We want to draw a "box" around the window and if the
-   *      pad is huge then the box will get drawn around that.
+   * worry about it. However, in this case, we want to draw 
+   * a "box" around the window and if the pad is huge then 
+   * the box will get drawn around that.
    *
-   * So... we have 32 lines of help, plus a top and bottom border,
-   * thus maxrows is 34.
+   * So... we have 41 lines of help, plus a top and bottom border,
+   * thus maxrows is 43. We also need to account for the filter settings
+   * that are only being displayed when enabled.
    *
-   * Our help text is not wider than 80, so we'll se that standard
+   * Our help text is not wider than 80, so we'll set that standard
    * width.
    *
    * If the screen is bigger than this, we deal with it below.
    */
-  unsigned int maxrows = 41;
+  unsigned int maxrows = 43;
   unsigned int maxcols = 80;
+
+  // Acount for dynamic filter settings
+  maxrows += flags.filter_src + flags.filter_srcpt + flags.filter_dst + flags.filter_dstpt;
 
   /*
    * The actual screen size
@@ -2257,6 +2264,8 @@ out:
  */
 int main(int argc, char *argv[])
 {
+  // Use the locale specified by the environment
+  setlocale(LC_ALL, "");
 
   // Variables
   string line, src, dst, srcpt, dstpt, proto, code, type, state, ttl, mins,
@@ -2548,9 +2557,9 @@ int main(int argc, char *argv[])
       prompt += " kernel!";
       flags.counters = 0;
       if (flags.single)
-	  cerr << prompt << endl;
+        cerr << prompt << endl;
       else
-	  c_warn(mainwin, prompt, flags);
+        c_warn(mainwin, prompt, flags);
     }
 
     // Sort our table
