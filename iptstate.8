@@ -28,8 +28,9 @@ Toggle color-code by protocol
 .B -C, --counters
 Toggle display of bytes/packets counters
 .TP
-.B -d, --dst-filter \fIIP\fP
-Only show states with a destination of \fIIP\fP
+.B -d, --dst-filter \fIIP[/NETMASK]\fP
+Only show states with a destination of \fIIP\fP and with optional \fINETMASK\fP.
+.br
 Note, that this must be an IP, hostname matching is not yet supported.
 .TP
 .B -D --dstpt-filter \fIport\fP
@@ -97,8 +98,10 @@ Packets
 .br
 To sort by Source IP (or Name), don't use \-b. Sorting by bytes/packets is only available for kernels that support it, and only when compiled against libnetfilter_conntrack (the default).
 .TP
-.B -s, --src-filter \fIIP\fP
-Only show states with a source of \fIIP\fP. Note, that this must be an IP, hostname matching is not yet supported.
+.B -s, --src-filter \fIIP[/NETMASK]\fP
+Only show states with a source of \fIIP\fP and with optional \fINETMASK\fP.
+.br
+Note, that this must be an IP, hostname matching is not yet supported.
 .TP
 .B -S, --srcpt-filter \fIport\fP
 Only show states with a source port of \fIport\fP
@@ -166,7 +169,7 @@ Error communicating with the netfilter subsystem.
 Terminal too narrow
 
 .SH BUGS
-We don't support filtering on resolved names, and we don't support filtering on networks. IPv6 support is new and the dynamic formatting doesn't yet always handle IPv6 addresses as well as it should.
+We don't support filtering on resolved names. IPv6 support is new and the dynamic formatting doesn't yet always handle IPv6 addresses as well as it should.
 
 .SH BUG REPORTS
 All bugs should be reported to Phil Dibowitz <phil AT ipom DOT com>. Please see the \fBREADME\fR and \fBBUGS\fR for more information on bug reports. Please read the \fBWISHLIST\fR before sending in features you hope to see.  
