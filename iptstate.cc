@@ -1229,7 +1229,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 }
 
 /**
- * Clear all table entries
+ * Nuke the tentry_t's we made before deleting the vector of pointers
  */
 void clear_table(vector<tentry_t*> &stable)
 {
@@ -1271,7 +1271,6 @@ void build_table(flags_t &flags, const filters_t &filters, vector<tentry_t*>
   /*
    * Initialization
    */
-  // Nuke the tentry_t's we made before deleting the vector of pointers
   clear_table(stable);
 
   counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped = 0;
