@@ -2259,6 +2259,17 @@ out:
 }
 
 
+
+/**
+ * Free allocated memory
+ */
+void cleanup(vector<tentry_t*> &stable){
+  for (tentry_t* entry: stable) {
+    delete entry;
+  }
+  stable.clear();
+}
+
 /*
  * MAIN
  */
@@ -2958,6 +2969,7 @@ int main(int argc, char *argv[])
   } // end while(1)
 
   out:
+    cleanup(stable);
 
   /*
    * The user has broken out of the loop, take down the curses
