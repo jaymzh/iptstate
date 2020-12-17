@@ -1228,6 +1228,18 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   return NFCT_CB_CONTINUE;
 }
 
+/**
+ * Clear all table entries
+ */
+void clear_table(vector<tentry_t*> &stable)
+{
+  for (tentry_t* entry: stable) {
+    delete entry;
+  }
+  stable.clear();
+}
+
+
 /*
  * This is the core of this program - build a table of states.
  *
@@ -1260,14 +1272,8 @@ void build_table(flags_t &flags, const filters_t &filters, vector<tentry_t*>
    * Initialization
    */
   // Nuke the tentry_t's we made before deleting the vector of pointers
-  for (
-      vector<tentry_t*>::iterator it = stable.begin();
-      it != stable.end();
-      it++
-  ) {
-    delete *it;
-  }
-  stable.clear();
+  clear_table(stable);
+
   counts.tcp = counts.udp = counts.icmp = counts.other = counts.skipped = 0;
 
   cth = nfct_open(CONNTRACK, 0);
@@ -2258,18 +2264,6 @@ out:
   halfdelay(1);
 }
 
-
-
-/**
- * Free allocated memory
- */
-void cleanup(vector<tentry_t*> &stable){
-  for (tentry_t* entry: stable) {
-    delete entry;
-  }
-  stable.clear();
-}
-
 /*
  * MAIN
  */
@@ -2969,7 +2963,7 @@ int main(int argc, char *argv[])
   } // end while(1)
 
   out:
-    cleanup(stable);
+  clear_table(stable);
 
   /*
    * The user has broken out of the loop, take down the curses
