@@ -1,3 +1,7 @@
+2.2.7
+- Released 10/16/21
+- Fix compiler warnings
+
 2.2.6
 - Released 08/14/16
 - Fix `-b` option which didn't work in many cases
