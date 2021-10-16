@@ -756,7 +756,7 @@ void get_input(WINDOW *win, string &input, const string &prompt,
   if (!flags.nocolor)
     wattron(cmd, COLOR_PAIR(4));
   keypad(cmd, true);
-  wprintw(cmd, prompt.c_str());
+  wprintw(cmd, "%s", prompt.c_str());
   wclrtoeol(cmd);
   prefresh(cmd, 0, 0, 0, 0, 0, x);
 
@@ -825,7 +825,7 @@ void c_warn(WINDOW *win, const string &warning, const flags_t &flags)
   WINDOW *warn = subpad(win, 1, x, 0, 0);
   if (!flags.nocolor)
     wattron(warn, COLOR_PAIR(4));
-  wprintw(warn, warning.c_str());
+  wprintw(warn, "%s", warning.c_str());
   wprintw(warn, " Press any key to continue...");
   wclrtoeol(warn);
   prefresh(warn, 0, 0, 0, 0, 0, x);
@@ -1077,7 +1077,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   minutes = minutes%60;
   seconds = seconds%60;
   // Format it with snprintf and store it in the table
-  snprintf(ttlc,11, "%3i:%02i:%02i", hours, minutes, seconds);
+  snprintf(ttlc, 11, "%3i:%02i:%02i", hours, minutes, seconds);
   entry->ttl = ttlc;
 
   entry->family = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO);

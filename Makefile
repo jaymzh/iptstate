@@ -17,7 +17,11 @@ MAN?=$(PREFIX)/share/man
 ### ADVANCED USERS AND PACKAGERS MIGHT WANT TO CHANGE THIS
 
 CXX?= g++
-CXXFLAGS?= -g -Wall -O2
+# All of our snprintf()s have size limits and are not a security issue,
+# but having to modulo every hours/second/minute variable in every snprintf
+# is the only way to work around format-truncation warning which is cumbersome
+# and hard to read. Hence -Wformat-truncation=0
+CXXFLAGS?= -g -Wall -O2 -Werror=format-security -Wformat-truncation=0
 CXXFILES?= iptstate.cc
 
 # THIS IS FOR NORMAL COMPILATION
