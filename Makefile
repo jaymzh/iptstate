@@ -49,7 +49,7 @@ iptstate: iptstate.cc Makefile
 	echo "+------------------------------------------------------------+" ;\
 	echo "";
 
-	$(CXX) $(CXXFLAGS) $(CXXFILES) -o iptstate $(LIBS) $(CPPFLAGS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $(CXXFILES) -o iptstate $(LIBS)
 	@touch iptstate
 
 	@\
