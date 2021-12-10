@@ -27,7 +27,6 @@ CXXFILES?= iptstate.cc
 
 # THIS IS FOR NORMAL COMPILATION
 LIBS?= $(shell $(PKG_CONFIG) --libs ncurses libnetfilter_conntrack)
-CPPFLAGS=
 
 ### YOU SHOULDN'T NEED TO CHANGE ANYTHING BELOW THIS
 
