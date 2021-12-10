@@ -13,6 +13,7 @@ SBIN?=$(PREFIX)/sbin
 INSTALL?=/usr/bin/install
 STRIP?=/usr/bin/strip
 MAN?=$(PREFIX)/share/man
+PKG_CONFIG?=pkg-config
 
 ### ADVANCED USERS AND PACKAGERS MIGHT WANT TO CHANGE THIS
 
@@ -25,7 +26,7 @@ CXXFLAGS?= -g -Wall -O2 -Werror=format-security -Wformat-truncation=0
 CXXFILES?= iptstate.cc
 
 # THIS IS FOR NORMAL COMPILATION
-LIBS?= -lncurses -lnetfilter_conntrack
+LIBS?= $(shell $(PKG_CONFIG) --libs ncurses libnetfilter_conntrack)
 CPPFLAGS=
 
 ### YOU SHOULDN'T NEED TO CHANGE ANYTHING BELOW THIS

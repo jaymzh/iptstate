@@ -28,9 +28,9 @@ Make sure you have some version of curses installed (for most users this is
 probably ncurses). Note that if you are using vendor packages you will most
 likely need the packaged with '-dev' on the end of of it (i.e. ncurses-dev).
 
-Starting with version 2.2.0 you also need libnetfilter_conntrack version 0.0.50
-or later. These libraries also require nf_conntrack_netlink and nfnetlink
-support in your kernel.
+Starting with version 2.2.0, you also need libnetfilter_conntrack version 0.0.50
+or later. These libraries also require nf_conntrack_netlink and nfnetlink support
+in your kernel. You will also need pkg-config at build-time.
 
 ## INSTALLATION
 
