@@ -1,20 +1,20 @@
 # Release process
 
-0. Bump version
+## Bump version
 
 ```shell
 vi iptstate.cc iptstate.spec
 ```
 
-1. Add appropriate Changelog entries
+## Add appropriate Changelog entries
 
 ```shell
 vi Changelog
 ```
 
-2. Commit & Push
+## Commit & Push
 
-3. Tag a release
+## Tag a release
 
 ```shell
 version="2.2.7" # update accordingly
@@ -22,7 +22,7 @@ git tag -a "v$version" -m "iptstate version $version"
 git push origin --tags
 ```
 
-4. Make a tarball
+## Make a tarball
 
 ```shell
 git archive --format=tar --prefix=iptstate-$version/ v$version \
@@ -35,12 +35,12 @@ mv iptstate-$version-prep.tar iptstate-$version.tar
 bzip2 iptstate-$version.tar
 ```
 
-5. Sign
+## Sign
 
 ```shell
 gpg -ab /tmp/iptstate-$version.tar.bz2
 ```
 
-6. Upload
+## Upload
 
-7. Update website
+## Update website

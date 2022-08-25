@@ -1,5 +1,8 @@
 # IP Tables State (iptstate)
 
+[![Lint](https://github.com/jaymzh/iptstate/workflows/Lint/badge.svg)](https://github.com/jaymzh/iptstate/actions?query=workflow%3ALint)
+[![Build](https://github.com/jaymzh/iptstate/workflows/Build/badge.svg)](https://github.com/jaymzh/iptstate/actions?query=workflow%3ABuild)
+
 Please see the LICENSE file for license information.
 
 ## WHAT IS IP TABLES STATE?
@@ -10,8 +13,9 @@ the states held by your stateful firewall in a top-like manner.
 
 Since IP Tables doesn't have a built in way to easily display this information
 even once, an option was added to just have it display the state table once.
- 
+
 Features include:
+
 * Top-like realtime state table information
 * Sorting by any field
 * Reversible sorting
@@ -21,10 +25,12 @@ Features include:
 * Color-coding
 * Open Source (specifically I'm using the zlib license)
 * much more...
-	
+
 ## INSTALATION
 
-IPTState is packaged in most Linux distributions. If your distribution is in the table below, your best bet is so use your distro's package manager to install it.
+IPTState is packaged in most Linux distributions. If your distribution is in
+the table below, your best bet is so use your distro's package manager to
+install it.
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/iptstate.svg)](https://repology.org/project/iptstate/versions)
 
@@ -44,8 +50,10 @@ in your kernel. You will also need pkg-config at build-time.
 
 For most people the following should do all you need:
 
-    make
-    make install # this must be done as root
+```shell
+make
+make install # this must be done as root
+```
 
 ### Building: the long version:
 
@@ -69,14 +77,18 @@ libc version, and the error messages.
 
 Package maintainers may wish to override CXXFLAGS, and can do so like so:
 
-    # CXXFLAGS=-O3 make
+```shell
+# CXXFLAGS=-O3 make
+```
 
 and/or use "make strip" which will build iptstate and then strip it.
 
 If you get errors like:
 
-    iptstate.cc:286: passing `in_addr *' as argument
-    1 of `gethostbyaddr(const char *, size_t, int)'
+```shell
+iptstate.cc:286: passing `in_addr *' as argument
+1 of `gethostbyaddr(const char *, size_t, int)'
+```
 
 then you need to upgrade your glibc. This is an important thing to keep
 up-to-date anyway.
@@ -88,11 +100,13 @@ superuser. You need root access (or CAP_NET_ADMIN) for iptstate to get the data
 it needs anyway.  Installing should be as simple as 'make install' as root. If
 this fails, feel free to do:
 
-    # cp iptstate /usr/sbin/iptstate
-    # chmod 755 /usr/sbin/iptstate
-    # chown root:bin /usr/sbin/iptstate
-    # cp iptstate.8 /usr/share/man/man8/iptstate.8
-    # chmod 444 /usr/share/man/man1/iptstate.8
+```shell
+# cp iptstate /usr/sbin/iptstate
+# chmod 755 /usr/sbin/iptstate
+# chown root:bin /usr/sbin/iptstate
+# cp iptstate.8 /usr/share/man/man8/iptstate.8
+# chmod 444 /usr/share/man/man1/iptstate.8
+```
 
 And that should do it. If 'make install' fails feel free to drop me an email
 provided you put "IPTSTATE:" in the subject. Please see the BUGS file on how to
@@ -141,7 +155,7 @@ that with IP Tables either.
 
 IPTState was written by me, Phil Dibowitz. My day job is large-scale system
 administration and automation. Outside of work I maintain several open source
-projects. You can find out more about me at http://www.phildev.net/
+projects. You can find out more about me at [PhilDev](http://www.phildev.net/).
 
 Phil Dibowitz
 phil AT ipom DOT com
