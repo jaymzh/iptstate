@@ -22,7 +22,15 @@ Features include:
 * Open Source (specifically I'm using the zlib license)
 * much more...
 	
-## PRE-INSTALATION
+## INSTALATION
+
+IPTState is packaged in most Linux distributions. If your distribution is in the table below, your best bet is so use your distro's package manager to install it.
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/iptstate.svg)](https://repology.org/project/iptstate/versions)
+
+Otherwise, you can build it from source.
+
+### Building: prerequisites
 
 Make sure you have some version of curses installed (for most users this is
 probably ncurses). Note that if you are using vendor packages you will most
@@ -32,16 +40,14 @@ Starting with version 2.2.0, you also need libnetfilter_conntrack version 0.0.50
 or later. These libraries also require nf_conntrack_netlink and nfnetlink support
 in your kernel. You will also need pkg-config at build-time.
 
-## INSTALLATION
-
-### The quick version:
+### Building: the quick version:
 
 For most people the following should do all you need:
 
     make
     make install # this must be done as root
 
-### The long version:
+### Building: the long version:
 
 #### Configuration
 
