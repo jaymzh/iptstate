@@ -26,6 +26,8 @@ Features include:
 * Open Source (specifically I'm using the zlib license)
 * much more...
 
+You can checkout some [screenshots][SCREENSHOTS.md].
+
 ## INSTALATION
 
 IPTState is packaged in most Linux distributions. If your distribution is in
