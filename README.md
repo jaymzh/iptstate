@@ -26,7 +26,7 @@ Features include:
 * Open Source (specifically I'm using the zlib license)
 * much more...
 
-You can checkout some [screenshots][SCREENSHOTS.md].
+You can checkout some [screenshots](SCREENSHOTS.md).
 
 ## INSTALATION
 
