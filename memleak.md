@@ -25,7 +25,7 @@ out to all of you.
 
 On October 28, 2002, at 12:47am, Steve Augart emailed me with his findings:
 
-```
+```text
 Date: Mon, 28 Oct 2002 00:47:29 -0800
 From: Steven Augart <steve@ugart.com>
 To: Brian Nelson <bnelson@bloodclot.net>
@@ -74,8 +74,19 @@ Please forward this note to the other maintainers.
 
 You can find the output he mentions at [memuse.out](memuse.out).
 
-As he said in the letter you can find his modified source, as well as his memory debugging software in the iptstate directory of [ftp.augart.com](ftp://ftp.augart.com/iptstate/).
+As he said in the letter you can find his modified source, as well as his
+memory debugging software in the iptstate directory of
+[ftp.augart.com](ftp://ftp.augart.com/iptstate/).
 
-In conclusion, this seems to be a bug in ncurses. My software does not leak when it doesn't use ncuses, but leaks very slowly when using ncurses. Brian hopefully will be notifying the ncurses maintainers as well as closing this bug - and iptstate should be able to stay in Debian (and hopefully move into testing).
+In conclusion, this seems to be a bug in ncurses. My software does not leak
+when it doesn't use ncuses, but leaks very slowly when using ncurses. Brian
+hopefully will be notifying the ncurses maintainers as well as closing this bug
+\- and iptstate should be able to stay in Debian (and hopefully move into
+testing).
 
-With that I'd like to say special thanks to Steve Augart, Julian Seward, Todd Lyons, and **everyone** at UUASC and USCLUG who pitched in to help out. There were many of you, and I will try and add more names to this list, but for now I'm trying to post it before I fall asleep. But know that even if you tried, and didn't find anything and thus didn't email me, I still appreciate your effort.
+With that I'd like to say special thanks to Steve Augart, Julian Seward, Todd
+Lyons, and **everyone** at UUASC and USCLUG who pitched in to help out. There
+were many of you, and I will try and add more names to this list, but for now
+I'm trying to post it before I fall asleep. But know that even if you tried,
+and didn't find anything and thus didn't email me, I still appreciate your
+effort.
