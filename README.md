@@ -34,7 +34,7 @@ IPTState is packaged in most Linux distributions. If your distribution is in
 the table below, your best bet is so use your distro's package manager to
 install it.
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/iptstate.svg)](https://repology.org/project/iptstate/versions)
+[![Packaging status](https://repology.org/badge/vertical-allrepos/iptstate.svg?exclude_unsupported=1)](https://repology.org/project/iptstate/versions)
 
 Otherwise, you can build it from source.
 
