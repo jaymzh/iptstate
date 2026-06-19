@@ -1,7 +1,11 @@
 # IP Tables State (iptstate)
 
-[![Lint](https://github.com/jaymzh/iptstate/workflows/Lint/badge.svg)](https://github.com/jaymzh/iptstate/actions?query=workflow%3ALint)
-[![Build](https://github.com/jaymzh/iptstate/workflows/Build/badge.svg)](https://github.com/jaymzh/iptstate/actions?query=workflow%3ABuild)
+[![Lint](
+https://github.com/jaymzh/iptstate/workflows/Lint/badge.svg
+)](https://github.com/jaymzh/iptstate/actions?query=workflow%3ALint)
+[![Build](
+https://github.com/jaymzh/iptstate/workflows/Build/badge.svg
+)](https://github.com/jaymzh/iptstate/actions?query=workflow%3ABuild)
 
 Please see the LICENSE file for license information.
 
@@ -34,7 +38,9 @@ IPTState is packaged in most Linux distributions. If your distribution is in
 the table below, your best bet is so use your distro's package manager to
 install it.
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/iptstate.svg?exclude_unsupported=1)](https://repology.org/project/iptstate/versions)
+[![Packaging status](
+https://repology.org/badge/vertical-allrepos/iptstate.svg?exclude_unsupported=1
+)](https://repology.org/project/iptstate/versions)
 
 Otherwise, you can build it from source.
 
@@ -44,9 +50,9 @@ Make sure you have some version of curses installed (for most users this is
 probably ncurses). Note that if you are using vendor packages you will most
 likely need the packaged with '-dev' on the end of of it (i.e. ncurses-dev).
 
-Starting with version 2.2.0, you also need libnetfilter_conntrack version 0.0.50
-or later. These libraries also require nf_conntrack_netlink and nfnetlink support
-in your kernel. You will also need pkg-config at build-time.
+Starting with version 2.2.0, you also need libnetfilter_conntrack version
+0.0.50 or later. These libraries also require nf_conntrack_netlink and
+nfnetlink support in your kernel. You will also need pkg-config at build-time.
 
 ### Building: the quick version:
 
