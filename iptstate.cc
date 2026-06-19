@@ -66,6 +66,7 @@ extern "C" {
 #include <ncurses.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <memory>
 using namespace std;
 
 #define VERSION "2.2.7"
@@ -1030,7 +1031,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   const filters_t *filters = data->filters;
 
   // our table entry
-  tentry_t *entry = new tentry_t;
+  unique_ptr<tentry_t> entry(new tentry_t);
 
   // some vars
   struct protoent* pe = NULL;
@@ -1218,12 +1219,12 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 
   // Resolve names - if necessary - or generate strings of address,
   // and calculate max sizes
-  stringify_entry(entry, *max, *flags);
+  stringify_entry(entry.get(), *max, *flags);
 
   /*
    * Add this to the array
    */
-  stable->push_back(entry);
+  stable->push_back(entry.release());
 
   return NFCT_CB_CONTINUE;
 }
