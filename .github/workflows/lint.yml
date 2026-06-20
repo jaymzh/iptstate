@@ -20,4 +20,4 @@ jobs:
       - name: MarkdownLint mdl Action
         uses: actionshub/markdownlint@v3.1.4
       - name: MarkdownLint mdl Action
-        uses: actionshub/markdownlint@2601ac85428122bc70b8d1ec4d539d1cfe17c0b3 # 1.2.0
+        uses: actionshub/markdownlint@6c82ff529253530dfbf75c37570876c52692835f # 3.1.4
