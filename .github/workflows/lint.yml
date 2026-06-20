@@ -16,7 +16,7 @@ jobs:
           egress-policy: audit
 
       - name: checkout
-        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: MarkdownLint mdl Action
         uses: actionshub/markdownlint@v3.1.4
       - name: MarkdownLint mdl Action
