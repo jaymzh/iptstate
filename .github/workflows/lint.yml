@@ -13,4 +13,4 @@ jobs:
       - name: checkout
         uses: actions/checkout@v7
       - name: MarkdownLint mdl Action
-        uses: actionshub/markdownlint@1.2.0
+        uses: actionshub/markdownlint@v3.1.4
