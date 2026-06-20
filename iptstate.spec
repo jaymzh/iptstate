@@ -1,5 +1,5 @@
 %define name iptstate
-%define version	2.2.7
+%define version	2.3.0
 %define release 1
 
 Name: %{name}

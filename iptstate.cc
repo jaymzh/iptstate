@@ -69,7 +69,7 @@ extern "C" {
 #include <memory>
 using namespace std;
 
-#define VERSION "2.2.7"
+#define VERSION "2.3.0"
 /*
  * MAXCONS is set to 16k, the default number of states in iptables. Generally
  * speaking the ncurses pad is this many lines long, but since ncurses
