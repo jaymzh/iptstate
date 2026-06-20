@@ -10,7 +10,14 @@ jobs:
   markdownlint:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
       - name: MarkdownLint mdl Action
         uses: actionshub/markdownlint@v3.1.4
+      - name: MarkdownLint mdl Action
+        uses: actionshub/markdownlint@2601ac85428122bc70b8d1ec4d539d1cfe17c0b3 # 1.2.0
