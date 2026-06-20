@@ -9,16 +9,16 @@ vi iptstate.cc iptstate.spec
 ## Add appropriate Changelog entries
 
 ```shell
-vi Changelog
+vi CHANGELOG.md
 ```
 
-## Commit & Push
+## Make PR & Merge
 
 ## Tag a release
 
 ```shell
 version="2.2.7" # update accordingly
-git tag -a "v$version" -m "iptstate version $version"
+git tag -a "v$version" -m "iptstate version $version" -s
 git push origin --tags
 ```
 
