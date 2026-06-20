@@ -560,6 +560,8 @@ bool packets_sort(tentry_t *one, tentry_t *two)
  */
 void end_curses()
 {
+  if (stdscr == NULL)
+    return;
   curs_set(1);
   nocbreak();
   endwin();
@@ -658,10 +660,16 @@ screensize_t get_size(const bool &single)
   if (!single) {          
     getmaxyx(stdscr, maxy, maxx);
   } else {
-    // https://stackoverflow.com/questions/1022957/
+    maxx = 72;
+
     struct winsize w;
-    ioctl(0, TIOCGWINSZ, &w);
-    maxx = w.ws_col;
+    // try all 3 std filehandles since people may have pipe in/out of us
+    for (int fd : {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO}) {
+      if (ioctl(fd, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
+        maxx = w.ws_col;
+        break;
+      }
+    }
 
     if (getenv("COLS"))
       maxx = atoi(getenv("COLS"));
