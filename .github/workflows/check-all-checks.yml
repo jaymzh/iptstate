@@ -1,0 +1,19 @@
+name: All checks pass
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  allchecks:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: wechuli/allcheckspassed@204ff63e89eabdc8086f0c50b91f675bcf37c8f6 # v2.4.0
