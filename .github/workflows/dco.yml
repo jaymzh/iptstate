@@ -1,0 +1,27 @@
+name: DCO Check
+on: [pull_request]
+
+permissions: {}
+
+jobs:
+  dco_check_job:
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    name: DCO Check
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - name: Get PR Commits
+      uses: actionshub/get-pr-commits@6fc8a0242c2c5853e3e8b86bde9d176682e5c5fb # main
+      id: 'get-pr-commits'
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    - name: DCO Check
+      uses: actionshub/dco@da8700138fd5b555270e7c3a49890746d0d2f93f # main
+      with:
+        commits: ${{ steps.get-pr-commits.outputs.commits }}
