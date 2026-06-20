@@ -609,7 +609,7 @@ void kill_handler(int sig)
  */
 static WINDOW* start_curses(flags_t &flags)
 {
-  int y, x;
+  [[maybe_unused]] int y, x;
   initscr();
   cbreak();
   noecho();
@@ -712,7 +712,7 @@ void term_too_small()
  */
 void switch_scroll(flags_t &flags, WINDOW *&mainwin)
 {
-  int x, y;
+  [[maybe_unused]] int x, y;
   if (flags.noscroll) {
     getmaxyx(stdscr, y, x);
     // remove stuff from the bottom window
@@ -759,7 +759,7 @@ void get_input(WINDOW *win, string &input, const string &prompt,
    */
   
   input = "";
-  int x, y;
+  [[maybe_unused]] int x, y;
   getmaxyx(stdscr, y, x);
   WINDOW *cmd = subpad(win, 1, x, 0, 0);
   if (!flags.nocolor)
@@ -1043,8 +1043,8 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
 
   // some vars
   struct protoent* pe = NULL;
-  int seconds, minutes, hours;
-  char ttlc[11];
+  unsigned int seconds, minutes, hours;
+  char ttlc[16];
   ostringstream buffer;
 
   /*
@@ -1086,7 +1086,7 @@ int conntrack_hook(enum nf_conntrack_msg_type nf_type, struct nf_conntrack *ct,
   minutes = minutes%60;
   seconds = seconds%60;
   // Format it with snprintf and store it in the table
-  snprintf(ttlc, 11, "%3i:%02i:%02i", hours, minutes, seconds);
+  snprintf(ttlc, sizeof(ttlc), "%3u:%02u:%02u", hours, minutes, seconds);
   entry->ttl = ttlc;
 
   entry->family = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO);
