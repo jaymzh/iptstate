@@ -1,6 +1,6 @@
-IPTSTATE CONTRIBUTIONS
+# IPTState Contributions
 
-IPTState is written and maintained by Phil Dibowitz <phil AT ipom DOT com>
+IPTState is written and maintained by Phil Dibowitz \<phil AT ipom DOT com\>.
 I originally wrote the software not planning on releasing it - I wanted
 a feature similar to IP Filter's StateTop when I was using Linux. I
 decided to release it. It became much bigger than I expected in just a
@@ -9,11 +9,13 @@ month.
 IPTState wouldn't be where it is today without many other people. This is
 an attempt to credit and thank them.
 
-IDEA
+## Idea
+
 Darren Reed wrote IP Filter.
 Frank Volf wrote the Statetop code for IP Filter.
 
-PACKAGERS
+## Packagers
+
 I'm very grateful to those who package my software. I've tried to list
 maintainers here, but if you're not here, please, let me know and I'll
 add you.
@@ -21,72 +23,76 @@ add you.
 If you package my software _please let me know_, and even more importantly,
 _please_ pass on bugs to me!
 
-Mandriva:      Garrick Staples
-Debian:        Chris Taylor (was: Brian Nelson)
-Gentoo:        (was: Eldad Zack)
-ALT Linux:     Victor Forsyuk 
-floppyfw:      Cristian Ionescu-Idbohrn
-pkgsrc:        Roland Illig
-Devil Linux:   (was: Bruce Smith)
-Fedora/EPEL:   Phil Sutter and Phil Dibowitz (was: Thomas Woerner)
-OpenEmbedded:  Jamie Lenehen
-ArchLinux:     Andrea Zucchelli
-ipcop:         Franck Bourdonnec
-Slackware (slackers.it repo): Corrado Franco
+| Distro | Maintainer |
+|--------|------------|
+| Mandriva | Garrick Staples |
+| Debian | Chris Taylor (was: Brian Nelson) |
+| Gentoo | (was: Eldad Zack) |
+| ALT Linux | Victor Forsyuk |
+| floppyfw | Cristian Ionescu-Idbohrn |
+| pkgsrc | Roland Illig |
+| Devil Linux | (was: Bruce Smith) |
+| Fedora/EPEL | Phil Sutter and Phil Dibowitz (was: Thomas Woerner) |
+| OpenEmbedded | Jamie Lenehen |
+| ArchLinux (community repo) | Andrea Zucchelli |
+| ipcop | Franck Bourdonnec |
+| Slackware (slackers.it repo) | Corrado Franco |
 
-OTHER
-Some people who helped me get this project started were Jullian Gomez, 
+## Other
+
+Some people who helped me get this project started were Jullian Gomez,
 my fellow USCLUG'ers (Ted Faber in particular), and my friend Sanjay.
 
-BY VERSION
+## By Version
+
 Other contributions follow based on version. If you contributed something
 and you are not listed here, let me know, it's easy to forget to list
 people. Also note that if you're in the Changelog, you may not be here:
 
-2.1
-- Thanks to Brian Nelson for find the -sSdD bug quickly before everyone
+### 2.1
+
+- Thanks to Brian Nelson for finding the -sSdD bug quickly before everyone
   had packaged 2.0!
 
-2.0
+### 2.0
+
 - Thanks to Ted Faber for his extensive coding knowledge
 - Thanks to Garrick Stapples for his help figuring out ncurses pads and scrolling
 - Thanks Bill Hudacek for the formatting bug report.
 
-1.4
--
+### 1.3
 
-1.3
 - Steve Augart finally proved the memory leak was in ncurses. Just in
-the nick of time before Debian kicked ipstate out. Extra special mega
-thanks to you Steve! Others who helped were Julian Seward, Todd Lyons,
-and many suggestions from various folks on the UUASC and USCLUG mailing
-lists.
+  the nick of time before Debian kicked ipstate out. Extra special mega
+  thanks to you Steve! Others who helped were Julian Seward, Todd Lyons,
+  and many suggestions from various folks on the UUASC and USCLUG mailing
+  lists.
 - Todd Lyons pointed out snprintf's in printline function should allow
-an extra char so as not to cut off newlines.
+  an extra char so as not to cut off newlines.
 
-1.2.1
+### 1.2.1
+
 - Thanks to Martin Geisler for pointing out the typo in the man page
 
-1.2.0
+### 1.2.0
+
 - Thanks to Garrick for all your help troubleshooting and beta testing.
 
-1.1.0
+### 1.1.0
+
 - Beat Bolli sent in a large patch that was a reference to finish up much
-of the work I was doing for this version such as fixing TTL sort, and
-various simplifications. His patch also reminded me to do the -R option,
-notified me of the 'make uninstall' bug, and gave a few cleanups.
+  of the work I was doing for this version such as fixing TTL sort, and
+  various simplifications. His patch also reminded me to do the -R option,
+  notified me of the 'make uninstall' bug, and gave a few cleanups.
 
 - Blars Blarson sent a patch to the Debian developers noting that I was
-only reading in 50 connections. He also sent in a patch to print a
-newline upon exiting state-top mode so the prompt isn't mixed in left-
-over output.
+  only reading in 50 connections. He also sent in a patch to print a
+  newline upon exiting state-top mode so the prompt isn't mixed in left-
+  over output.
 
 - Many others made patches that did some of the above things in countless
-ways...
+  ways...
 
-1.0.1
+### 1.0.1
+
 - Thanks to Garrick Staples for the .spec file
-
-Phil Dibowitz
-phil AT ipom DOT com
-
