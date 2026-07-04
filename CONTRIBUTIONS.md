@@ -25,18 +25,12 @@ _please_ pass on bugs to me!
 
 | Distro | Maintainer |
 |--------|------------|
-| Mandriva | Garrick Staples |
-| Debian | Chris Taylor (was: Brian Nelson) |
-| Gentoo | (was: Eldad Zack) |
-| ALT Linux | Victor Forsyuk |
-| floppyfw | Cristian Ionescu-Idbohrn |
-| pkgsrc | Roland Illig |
-| Devil Linux | (was: Bruce Smith) |
-| Fedora/EPEL | Phil Sutter and Phil Dibowitz (was: Thomas Woerner) |
-| OpenEmbedded | Jamie Lenehen |
+| Debian | Michel Lind (previously: Chris Taylor, Brian Nelson) |
+| Ubuntu | Michel Lind |
+| Gentoo | netmon@gentoo.org (previously: Eldad Zack) |
+| Fedora/EPEL | Phil Dibowitz (previously: Phil Sutter, Thomas Woerner) |
 | ArchLinux (community repo) | Andrea Zucchelli |
-| ipcop | Franck Bourdonnec |
-| Slackware (slackers.it repo) | Corrado Franco |
+| PureOS | ctaylor@debian.org |
 
 ## Other
 
