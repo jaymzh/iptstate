@@ -35,12 +35,21 @@ You can checkout some [screenshots](SCREENSHOTS.md).
 ## INSTALATION
 
 IPTState is packaged in most Linux distributions. If your distribution is in
-the table below, your best bet is so use your distro's package manager to
+the table below, your best bet is usually to use your distro's package manager to
 install it.
 
 [![Packaging status](
 https://repology.org/badge/vertical-allrepos/iptstate.svg?exclude_unsupported=1
 )](https://repology.org/project/iptstate/versions)
+
+If you're on Ubuntu, but not the latest, you can use [this PPA](
+https://launchpad.net/~michel-slm/+archive/ubuntu/kernel-utils/) to get a newer
+version for all supported Ubuntu releases. These are from our Ubuntu maintainer.
+
+If you're on Debian, you can use [this Debusine](
+https://deb.debusine.debian.net/debian/r-michelin-iptstate/) to get a newer
+version for all the current Debian Stable release. These are from our Debian
+maintainer.
 
 Otherwise, you can build it from source.
 
