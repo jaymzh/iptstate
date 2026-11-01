@@ -17,7 +17,7 @@ jobs:
         egress-policy: audit
 
     - name: Get PR Commits
-      uses: actionshub/get-pr-commits@6fc8a0242c2c5853e3e8b86bde9d176682e5c5fb # main
+      uses: actionshub/get-pr-commits@043233955440a262985aee5a35e69da1fcbfb9e7 # main
       id: 'get-pr-commits'
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
